@@ -1,0 +1,19 @@
+{
+    "name": "agentrix-root",
+    "private": true,
+    "version": "1.0.0",
+    "workspaces": [
+        "frontend",
+        "backend"
+    ],
+    "scripts": {
+        "dev:frontend": "npm run dev --workspace=agentrix-frontend",
+        "dev:backend": "npm run dev --workspace=agentrix-backend",
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "build": "npm run build --workspace=agentrix-frontend",
+        "start": "npm run start --workspace=agentrix-backend"
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.1"
+    }
+}
