@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import User from '../../database/models/User.js';
+import { User } from '../db.js';
 import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
@@ -26,7 +26,7 @@ router.get('/me', async (req, res) => {
         }
 
         // Find or create user in MongoDB by email
-        let user = await User.findOne({ email: sbUser.email }).select('-password');
+        let user = await User.findOne({ email: sbUser.email });
 
         if (!user) {
             user = await User.create({
@@ -42,7 +42,6 @@ router.get('/me', async (req, res) => {
         if (!user.publicKey || !user.secretKey) {
             user.publicKey = user.publicKey || 'pk_' + crypto.randomBytes(16).toString('hex');
             user.secretKey = user.secretKey || 'sk_' + crypto.randomBytes(16).toString('hex');
-            await user.save();
         }
 
         res.json({

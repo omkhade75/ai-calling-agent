@@ -1,7 +1,7 @@
 import express from 'express';
-import Otp from '../../database/models/Otp.js';
 
 const router = express.Router();
+const otps = {};
 
 // Generate and "send" OTP
 router.post('/send', async (req, res) => {
@@ -11,12 +11,9 @@ router.post('/send', async (req, res) => {
 
         // Generate 6 digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+        const expiresAt = Date.now() + 5 * 60 * 1000; // 5 mins
 
-        // Invalidate old OTPs for this phone
-        await Otp.deleteMany({ phone });
-
-        await Otp.create({ phone, otp, expiresAt });
+        otps[phone] = { otp, expiresAt, verified: false };
 
         // In a real app, use Twilio/Fast2SMS here.
         console.log(`\n🔑 [OTP] Sent ${otp} to ${phone}\n`);
@@ -32,19 +29,13 @@ router.post('/send', async (req, res) => {
 router.post('/verify', async (req, res) => {
     try {
         const { phone, otp } = req.body;
-        const record = await Otp.findOne({
-            phone,
-            otp,
-            verified: false,
-            expiresAt: { $gt: new Date() }
-        });
+        const record = otps[phone];
 
-        if (!record) {
+        if (!record || record.otp !== otp || record.expiresAt < Date.now()) {
             return res.status(400).json({ error: 'Invalid or expired OTP' });
         }
 
         record.verified = true;
-        await record.save();
 
         res.json({ success: true, message: 'Phone verified' });
     } catch (error) {

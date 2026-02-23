@@ -1,6 +1,5 @@
 import express from 'express';
-import User from '../../database/models/User.js';
-import VoiceAssistant from '../../database/models/VoiceAssistant.js';
+import { User, VoiceAssistant } from '../db.js';
 
 const router = express.Router();
 

@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 
 import authRoutes from './routes/auth.js';
@@ -9,7 +8,6 @@ import voiceChatRoutes from './routes/voiceChat.js';
 
 const app = express();
 const PORT = process.env.PORT || process.env.SERVER_PORT || 5000;
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://127.0.0.1:27017/agentrix';
 
 // Global error handlers
 process.on('uncaughtException', (err) => {
@@ -76,17 +74,7 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Connect to MongoDB asynchronously
-try {
-    const maskedURI = MONGO_URI.replace(/:([^:@]+)@/, ':****@');
-    console.log(`Connecting to MongoDB at: ${maskedURI}`);
-    mongoose
-        .connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-        .then(() => console.log('✅ Connected to MongoDB'))
-        .catch((err) => console.error('❌ MongoDB connection error:', err.message));
-} catch (dbError) {
-    console.error('Synchronous DB connect error:', dbError);
-}
+// No MongoDB connection required as it's been replaced with a local memory store
 
 // Start server immediately (required for Railway health checks)
 try {

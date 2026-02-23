@@ -1,7 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import VoiceAssistant from '../../database/models/VoiceAssistant.js';
-import User from '../../database/models/User.js';
+import { VoiceAssistant, User } from '../db.js';
 
 const router = express.Router();
 
