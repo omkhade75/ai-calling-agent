@@ -1,73 +1,55 @@
-# Deployment Guide for Agentrix
+# Agentrix 7D Enterprise Deployment Guide
 
-This guide explains how to deploy the Agentrix application to a production environment. Since this is a full-stack application (React Frontend + Express Backend + MongoDB), you will need to deploy these components.
-
-## Prerequisites
-
-1.  **MongoDB Atlas Account**: You need a cloud database. [Sign up here](https://www.mongodb.com/cloud/atlas).
-2.  **GitHub Account**: To host your code.
-3.  **Vercel Account**: For the Frontend.
-4.  **Render or Railway Account**: For the Backend.
+Agentrix is built for seamless deployment using modern serverless features and a decoupled architecture. This guide provides the exact steps required to host the platform on enterprise cloud providers.
 
 ---
 
-## Step 1: Database Setup (MongoDB Atlas)
+## 🚀 Step 1: Backend Deployment (Render.com)
 
-1.  Create a new Cluster (Shared Tier is free).
-2.  Create a Database User (username/password).
-3.  Network Access: Allow access from anywhere (`0.0.0.0/0`).
-4.  Get your **Connection String**:
-    `mongodb+srv://<username>:<password>@cluster0.mongodb.net/Agentrix?retryWrites=true&w=majority`
+Agentrix's backend runs on Node.js/Express, now utilizing an incredibly fast built-in memory store instead of an external database.
 
----
-
-## Step 2: Backend Deployment (Render.com)
-
-1.  Push your code to GitHub.
-2.  Go to [Render Dashboard](https://dashboard.render.com).
-3.  New **Web Service** -> Connect your Repo.
-4.  **Settings**:
-    *   **Root Directory**: `.` (leave empty or use default)
+1.  Push your code to your GitHub Repository.
+2.  Go to the [Render Dashboard](https://dashboard.render.com).
+3.  Click **New +** -> **Web Service** -> Connect your Repo.
+4.  Configure the Service:
+    *   **Root Directory**: `backend`
     *   **Build Command**: `npm install`
-    *   **Start Command**: `npm run server`
+    *   **Start Command**: `npm run start`
 5.  **Environment Variables**:
-    *   `MONGODB_URI`: (Your Atlas connection string)
-    *   `OPENAI_API_KEY`: (Your OpenAI key)
-    *   `ELEVENLABS_API_KEY`: (Optional, your ElevenLabs key)
-    *   `PORT`: `10000` (Render default) or `5000`
+    *   `PORT`: `5000` (Render explicitly maps this)
+    *   `OPENAI_API_KEY`: *(Your OpenAI Secret Key)*
+    *   `VITE_SUPABASE_URL`: *(Your Supabase Project URL)*
+    *   `VITE_SUPABASE_ANON_KEY`: *(Your Supabase ANON Key)*
 
-Once deployed, you will get a URL like `https://agentrix-backend.onrender.com`.
+Once Render successfully builds the server, you will receive a Live URL. Save this URL for the frontend setup.
 
 ---
 
-## Step 3: Frontend Deployment (Vercel)
+## 🛸 Step 2: Frontend Deployment (Vercel)
 
-1.  Go to [Vercel Dashboard](https://vercel.com).
-2.  **Add New Project** -> Import your Repo.
-3.  **Build Settings**: Default (Vite).
+The beautiful 7D frontend is built with Vite, React, and Framer Motion. 
+
+1.  Go to the [Vercel Dashboard](https://vercel.com).
+2.  Click **Add New Project** -> Import the same GitHub repository.
+3.  Configure the Build Settings:
+    *   **Root Directory**: `frontend`
+    *   **Framework Preset**: `Vite`
+    *   **Build Command**: `npm run build`
+    *   **Output Directory**: `dist`
 4.  **Environment Variables**:
-    *   `VITE_API_URL`: The URL of your backend (e.g., `https://agentrix-backend.onrender.com/api`).
-        *   **Note**: Make sure to include `/api` at the end if your backend routes are prefixed with `/api`.
-5.  **Deploy**.
+    *   `VITE_API_URL`: *[Your Render Backend URL from Step 1]*
+    *   `VITE_SUPABASE_URL`: *(Matches your backend config)*
+    *   `VITE_SUPABASE_ANON_KEY`: *(Matches your backend config)*
+5.  Click **Deploy**.
 
 ---
 
-## Step 4: Verification
+## 🔧 Step 3: Verification & Diagnostics
 
-1.  Open your Vercel URL.
-2.  Try to sign in or use the Voice Agent.
-3.  If you see "Network Error" or 404s, check:
-    *   Did you set `VITE_API_URL` correctly?
-    *   Is the Backend running on Render?
-    *   Check Console Logs (`F12`) for CORS errors. (The backend is configured to allow all origins `cors({ origin: '*' })`, so it should work).
+Once Vercel gives you your production Web URL:
+1.  Open the live site.
+2.  Authenticate with your enterprise credentials.
+3.  Attempt to spawn a new 3D Voice Agent.
+4.  Check the Vercel/Render logs if you encounter any "Network Error" issues. Make sure your `VITE_API_URL` correctly points to the deployed node server.
 
-## Local Development (Running locally)
-
-To run the project on your machine:
-
-1.  **Backend**: `npm run server` (Runs on port 5000)
-2.  **Frontend**: `npm run dev` (Runs on port 8080 or 5173)
-
-**Common Issues:**
-*   `ECONNREFUSED`: You forgot to start the backend (`npm run server`).
-*   `EADDRINUSE`: You have a zombie process. Use `taskkill /F /IM node.exe` (Windows) or `pkill -f node` (Mac/Linux).
+Enjoy your flawlessly deployed, modern Voice Agent Studio!
