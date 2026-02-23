@@ -203,28 +203,28 @@ export default function VoiceAgentStudio() {
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden preserve-3d">
       {/* HEADER */}
-      <header className="h-20 border-b border-white/[0.05] bg-background/80 backdrop-blur-3xl flex items-center justify-between px-8 z-50">
+      <header className="h-14 border-b border-white/[0.04] bg-background/80 backdrop-blur-3xl flex items-center justify-between px-6 z-50">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-3 transition-transform hover:scale-105">
-            <div className="h-10 w-10 p-1.5 rounded-xl border border-white/10 bg-white/5 shadow-2xl">
+            <div className="h-7 w-7 p-1 rounded-lg border border-white/10 bg-white/5">
               <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
             </div>
-            <span className="font-display text-xl font-black tracking-widest text-white uppercase italic">
-              Studio<span className="text-primary">.3D</span>
+            <span className="font-display text-[11px] font-bold tracking-[0.25em] text-white uppercase">
+              Studio<span className="text-primary">.7D</span>
             </span>
           </Link>
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" asChild className="text-muted-foreground hover:text-white">
-            <Link to="/phone-numbers"><Phone className="mr-2 h-4 w-4" /> Comms</Link>
+          <Button variant="ghost" asChild className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white hover:bg-white/5">
+            <Link to="/phone-numbers"><Phone className="mr-2 h-3 w-3" /> Comms</Link>
           </Button>
-          <div className="h-6 w-px bg-white/10" />
-          <Button onClick={saveAssistant} disabled={loading || !activeId} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-full px-6 shadow-3d translate-z-10">
-            <Save className="mr-2 h-4 w-4" /> Deploy Changes
+          <div className="h-4 w-px bg-white/10" />
+          <Button onClick={saveAssistant} disabled={loading || !activeId} className="h-8 px-5 rounded-full bg-primary text-white text-[10px] font-black tracking-widest btn-glow hover:scale-105 transition-all">
+            <Save className="mr-2 h-3.5 w-3.5" /> Deploy
           </Button>
-          <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full hover:bg-white/5">
-            <LogOut className="h-5 w-5 text-muted-foreground" />
+          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 rounded-full hover:bg-white/5">
+            <LogOut className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
       </header>

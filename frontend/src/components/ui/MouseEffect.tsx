@@ -1,51 +1,98 @@
-import { useEffect, useState } from "react";
-import { motion, useSpring } from "framer-motion";
+import { useEffect, useRef } from "react";
 
 export function MouseEffect() {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const dotRef = useRef<HTMLDivElement>(null);
+    const ringRef = useRef<HTMLDivElement>(null);
+    const trailRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const updateMousePosition = (e: MouseEvent) => {
-            setMousePosition({
-                x: e.clientX,
-                y: e.clientY,
+        const dot = dotRef.current;
+        const ring = ringRef.current;
+        const trail = trailRef.current;
+        if (!dot || !ring || !trail) return;
+
+        let mouseX = 0, mouseY = 0;
+        let trailX = 0, trailY = 0;
+        let ringX = 0, ringY = 0;
+        let rafId: number;
+
+        const onMove = (e: MouseEvent) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            // Dot follows instantly
+            dot.style.left = `${mouseX}px`;
+            dot.style.top = `${mouseY}px`;
+        };
+
+        const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+        const animate = () => {
+            // Ring with slight lag
+            ringX = lerp(ringX, mouseX, 0.18);
+            ringY = lerp(ringY, mouseY, 0.18);
+            ring.style.left = `${ringX}px`;
+            ring.style.top = `${ringY}px`;
+
+            // Trail with more lag
+            trailX = lerp(trailX, mouseX, 0.08);
+            trailY = lerp(trailY, mouseY, 0.08);
+            trail.style.left = `${trailX}px`;
+            trail.style.top = `${trailY}px`;
+
+            rafId = requestAnimationFrame(animate);
+        };
+
+        const onEnterInteractive = () => {
+            document.body.classList.add("cursor-hover");
+        };
+        const onLeaveInteractive = () => {
+            document.body.classList.remove("cursor-hover");
+        };
+
+        // Attach to clickable elements
+        const attachHover = () => {
+            document.querySelectorAll("a, button, [role='button'], input, select, textarea, label").forEach((el) => {
+                el.addEventListener("mouseenter", onEnterInteractive);
+                el.addEventListener("mouseleave", onLeaveInteractive);
             });
         };
 
-        window.addEventListener("mousemove", updateMousePosition);
+        window.addEventListener("mousemove", onMove);
+        rafId = requestAnimationFrame(animate);
+        attachHover();
+
+        // Reattach on DOM changes (for dynamic elements)
+        const observer = new MutationObserver(attachHover);
+        observer.observe(document.body, { childList: true, subtree: true });
 
         return () => {
-            window.removeEventListener("mousemove", updateMousePosition);
+            window.removeEventListener("mousemove", onMove);
+            cancelAnimationFrame(rafId);
+            observer.disconnect();
         };
     }, []);
 
-    const springX = useSpring(mousePosition.x, { stiffness: 100, damping: 20 });
-    const springY = useSpring(mousePosition.y, { stiffness: 100, damping: 20 });
-
     return (
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-            {/* Primary Glow */}
-            <motion.div
-                className="pointer-events-none absolute w-[600px] h-[600px] rounded-full blur-[150px] opacity-20 mix-blend-screen"
-                style={{
-                    background: "radial-gradient(circle, rgba(124, 58, 237, 0.6) 0%, rgba(6, 182, 212, 0.2) 100%)",
-                    x: springX,
-                    y: springY,
-                    translateX: "-50%",
-                    translateY: "-50%",
-                }}
+        <>
+            {/* Dot – instant follow */}
+            <div
+                ref={dotRef}
+                id="cursor-dot"
+                style={{ position: "fixed", top: 0, left: 0, pointerEvents: "none", zIndex: 99999 }}
             />
-            {/* High-intensity Core */}
-            <motion.div
-                className="pointer-events-none absolute w-[200px] h-[200px] rounded-full blur-[80px] opacity-40 mix-blend-screen"
-                style={{
-                    background: "radial-gradient(circle, rgba(6, 182, 212, 0.8) 0%, rgba(124, 58, 237, 0) 100%)",
-                    x: springX,
-                    y: springY,
-                    translateX: "-50%",
-                    translateY: "-50%",
-                }}
+            {/* Ring – lagged follow */}
+            <div
+                ref={ringRef}
+                id="cursor-ring"
+                style={{ position: "fixed", top: 0, left: 0, pointerEvents: "none", zIndex: 99998 }}
             />
-        </div>
+            {/* Glow Trail – heavy lag */}
+            <div
+                ref={trailRef}
+                id="cursor-trail"
+                style={{ position: "fixed", top: 0, left: 0, pointerEvents: "none", zIndex: 99997 }}
+            />
+        </>
     );
 }

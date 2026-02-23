@@ -1,42 +1,29 @@
 import { Link } from "react-router-dom";
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from "framer-motion";
-import { useRef, useEffect, useState, useCallback } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Mic,
-  Wand2,
-  PlugZap,
-  Rocket,
-  Sparkles,
-  Bot,
-  AudioWaveform,
-  Globe,
-  Zap,
-  Shield,
-  ArrowRight,
-  PhoneCall,
-  BrainCircuit,
-  Layers,
-  ChevronRight,
-  Star,
+  Mic, Wand2, PlugZap, Rocket, Sparkles, Bot, AudioWaveform,
+  Globe, Zap, Shield, ChevronRight, PhoneCall, BrainCircuit,
+  Layers, ArrowUpRight,
 } from "lucide-react";
 import agentrixLogo from "@/assets/agentrix-logo.png";
 
 /* ─── Data ─── */
 const features = [
-  { icon: Bot, title: "Custom AI Agents", desc: "Build voice assistants with custom personalities and behaviors tailored to your brand.", color: "from-indigo-500 to-purple-600", accent: "indigo" },
-  { icon: AudioWaveform, title: "Natural Voices", desc: "Choose from premium voice models with adjustable tone and emotion for lifelike conversations.", color: "from-purple-500 to-pink-500", accent: "purple" },
-  { icon: PlugZap, title: "Tool Calling", desc: "Connect webhooks and APIs. Let your assistant take actions during live conversations.", color: "from-blue-500 to-cyan-500", accent: "blue" },
-  { icon: Zap, title: "Ultra-Low Latency", desc: "Sub-second response times with streaming audio and real-time WebSocket connections.", color: "from-cyan-500 to-emerald-500", accent: "cyan" },
-  { icon: Globe, title: "Multi-Language", desc: "Deploy assistants in 30+ languages with automatic detection and seamless switching.", color: "from-pink-500 to-rose-500", accent: "pink" },
-  { icon: Shield, title: "Enterprise Ready", desc: "SOC2 compliant, end-to-end encryption, and role-based access for your team.", color: "from-violet-500 to-indigo-600", accent: "violet" },
+  { icon: Bot, title: "Custom AI Agents", desc: "Build voice assistants with custom personalities tailored precisely to your brand.", color: "from-violet-600 to-purple-700" },
+  { icon: AudioWaveform, title: "Neural Voices", desc: "Premium voice synthesis with adjustable tone and emotion for lifelike conversations.", color: "from-fuchsia-600 to-pink-700" },
+  { icon: PlugZap, title: "Tool Calling", desc: "Connect webhooks and APIs. Let your assistant take real actions during live calls.", color: "from-blue-600 to-cyan-600" },
+  { icon: Zap, title: "Ultra-Low Latency", desc: "Sub-200ms response times with streaming audio and real-time WebSocket connections.", color: "from-emerald-600 to-cyan-700" },
+  { icon: Globe, title: "30+ Languages", desc: "Deploy assistants globally with automatic language detection and seamless switching.", color: "from-rose-600 to-pink-600" },
+  { icon: Shield, title: "Enterprise Security", desc: "SOC2 compliant. End-to-end encryption and role-based access for your entire team.", color: "from-amber-600 to-orange-600" },
 ];
 
 const steps = [
-  { num: "01", title: "Create Your Assistant", desc: "Define persona and style.", icon: Wand2 },
-  { num: "02", title: "Configure Voice", desc: "Select tone and emotion.", icon: Sparkles },
+  { num: "01", title: "Create Agent", desc: "Define persona, style and goals.", icon: Wand2 },
+  { num: "02", title: "Configure Voice", desc: "Select tone, pace and emotion.", icon: Sparkles },
   { num: "03", title: "Connect Tools", desc: "Wire up APIs and webhooks.", icon: PlugZap },
-  { num: "04", title: "Deploy Anywhere", desc: "Single click to go live.", icon: Rocket },
+  { num: "04", title: "Deploy Live", desc: "One click to production.", icon: Rocket },
 ];
 
 const integrations = [
@@ -48,199 +35,237 @@ const integrations = [
   { name: "Google AI", icon: Globe },
 ];
 
-/* ─── 3D Tilt Hook ─── */
+/* ─── 3D Tilt Card Hook ─── */
 const useTilt = () => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const mouseX = useSpring(x, { stiffness: 150, damping: 20 });
-  const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
-
-  const rotateX = useTransform(mouseY, [-0.5, 0.5], [10, -10]);
-  const rotateY = useTransform(mouseX, [-0.5, 0.5], [-10, 10]);
+  const mx = useSpring(x, { stiffness: 200, damping: 25 });
+  const my = useSpring(y, { stiffness: 200, damping: 25 });
+  const rotateX = useTransform(my, [-0.5, 0.5], [8, -8]);
+  const rotateY = useTransform(mx, [-0.5, 0.5], [-8, 8]);
 
   const onMouseMove = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
-    const mouseXPos = e.clientX - rect.left;
-    const mouseYPos = e.clientY - rect.top;
-    x.set(mouseXPos / width - 0.5);
-    y.set(mouseYPos / height - 0.5);
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
   };
-
-  const onMouseLeave = () => {
-    x.set(0);
-    y.set(0);
-  };
-
+  const onMouseLeave = () => { x.set(0); y.set(0); };
   return { rotateX, rotateY, onMouseMove, onMouseLeave };
 };
 
-/* ─── Animated Grid Background ─── */
-const GridBackground = () => (
-  <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30">
+/* ─── Perspective Grid ─── */
+const GridBg = () => (
+  <div className="pointer-events-none absolute inset-0 overflow-hidden">
     <div className="absolute inset-0" style={{
-      backgroundImage: `linear-gradient(hsla(263, 90%, 60%, 0.05) 1px, transparent 1px), linear-gradient(90deg, hsla(263, 90%, 60%, 0.05) 1px, transparent 1px)`,
-      backgroundSize: '80px 80px',
-      perspective: '1000px',
-      transform: 'rotateX(20deg) scale(1.5)',
-      transformOrigin: 'top',
+      backgroundImage: `
+        linear-gradient(hsla(263,90%,60%,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, hsla(263,90%,60%,0.04) 1px, transparent 1px)
+      `,
+      backgroundSize: "60px 60px",
+      transform: "perspective(800px) rotateX(18deg) scale(1.6)",
+      transformOrigin: "top center",
     }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/50 to-background" />
+    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
   </div>
 );
 
-/* ─── 3D Hero Orb ─── */
+/* ─── Animated Orb ─── */
 const HeroOrb = () => (
-  <div className="relative flex items-center justify-center perspective-[1000px] preserve-3d">
+  <div className="relative flex items-center justify-center">
+    {/* Outer rotating rings */}
+    {[0, 1, 2].map(i => (
+      <motion.div key={i}
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 12 + i * 6, repeat: Infinity, ease: "linear" }}
+        className="absolute rounded-full border border-white/[0.06]"
+        style={{ width: 220 + i * 80, height: 220 + i * 80, borderColor: `hsla(${263 + i * 40},80%,65%,${0.12 - i * 0.03})` }}
+      />
+    ))}
+    {/* Accent ring */}
     <motion.div
-      animate={{
-        rotateY: [0, 360],
-        rotateX: [0, 10, -10, 0],
-      }}
-      transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-      className="relative h-80 w-80 preserve-3d"
+      animate={{ rotate: [360, 0] }}
+      transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+      className="absolute w-[260px] h-[260px] rounded-full"
+      style={{ border: "1px dashed hsla(185,90%,60%,0.15)" }}
+    />
+    {/* Core entity */}
+    <motion.div
+      animate={{ scale: [1, 1.04, 1], boxShadow: ["0 0 40px hsla(263,90%,60%,0.3)", "0 0 80px hsla(263,90%,60%,0.5)", "0 0 40px hsla(263,90%,60%,0.3)"] }}
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      className="relative w-36 h-36 rounded-full flex items-center justify-center"
+      style={{ background: "radial-gradient(circle at 35% 35%, hsla(263,90%,75%,1), hsla(263,90%,45%,1))" }}
     >
-      {/* Dynamic Rings */}
-      {[...Array(3)].map((_, i) => (
-        <motion.div
-          key={i}
-          animate={{
-            rotateX: [0, 360],
-            rotateZ: [0, 360],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 10 + i * 5,
-            repeat: Infinity,
-            ease: "linear",
-            delay: i * 2
-          }}
-          className="absolute inset-0 rounded-full border border-primary/20"
-          style={{ transform: `rotateY(${i * 60}deg)` }}
-        />
-      ))}
-
-      {/* Core Orb */}
-      <motion.div
-        animate={{ scale: [1, 1.05, 1] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute inset-20 rounded-full bg-gradient-to-br from-primary via-purple-500 to-accent shadow-[0_0_100px_rgba(139,92,246,0.5)] flex items-center justify-center preserve-3d"
-      >
-        <div className="absolute inset-2 rounded-full bg-black/20 backdrop-blur-sm" />
-        <Bot className="h-12 w-12 text-white relative z-10" />
-
-        {/* Internal Glow */}
-        <motion.div
-          animate={{ opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute inset-0 rounded-full bg-white/20 blur-xl"
-        />
-      </motion.div>
+      <div className="absolute inset-2 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center">
+        <Bot className="h-10 w-10 text-white" />
+      </div>
+      <motion.div animate={{ opacity: [0.2, 0.5, 0.2] }} transition={{ duration: 2, repeat: Infinity }}
+        className="absolute inset-0 rounded-full bg-white/20 blur-xl"
+      />
     </motion.div>
-
-    {/* Light Flares */}
-    <div className="absolute -inset-20 bg-primary/10 blur-[120px] rounded-full" />
-    <div className="absolute inset-0 bg-accent/5 blur-[80px] rounded-full translate-x-10" />
+    {/* Glow aura */}
+    <div className="absolute w-80 h-80 rounded-full blur-[100px] opacity-20"
+      style={{ background: "radial-gradient(circle, hsla(263,90%,65%,1), hsla(185,90%,55%,0.5))" }}
+    />
   </div>
 );
 
+/* ─── Feature Card ─── */
+const FeatureCard = ({ title, desc, icon: Icon, color, index }: any) => {
+  const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ delay: index * 0.08 }}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+      className="group glass-card shimmer neon-border p-7 rounded-2xl preserve-3d cursor-pointer"
+    >
+      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-5 shadow-lg`} style={{ transform: "translateZ(20px)" }}>
+        <Icon className="h-5 w-5 text-white" />
+      </div>
+      <h3 className="font-display text-base font-bold text-white mb-2 tracking-tight" style={{ transform: "translateZ(14px)" }}>
+        {title}
+      </h3>
+      <p className="text-[11px] text-muted-foreground leading-relaxed" style={{ transform: "translateZ(8px)" }}>
+        {desc}
+      </p>
+      <div className="absolute bottom-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-3">
+        <ArrowUpRight className="h-3 w-3 text-primary/60" />
+      </div>
+    </motion.div>
+  );
+};
+
+/* ─── Step ─── */
+const Step = ({ num, title, desc, icon: Icon, index }: any) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true }}
+    transition={{ delay: index * 0.1 }}
+    className="flex items-start gap-4 group"
+  >
+    <div className="relative flex-shrink-0">
+      <div className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.03] flex items-center justify-center group-hover:border-primary/30 group-hover:bg-primary/10 transition-all">
+        <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+      </div>
+      <span className="absolute -top-1.5 -right-1.5 text-[9px] font-black text-primary/60 font-mono">{num}</span>
+      {index < 3 && <div className="absolute left-1/2 top-10 h-10 border-l border-dashed border-white/[0.06]" />}
+    </div>
+    <div className="pb-8">
+      <p className="font-bold text-[13px] text-white mb-1">{title}</p>
+      <p className="text-[11px] text-muted-foreground">{desc}</p>
+    </div>
+  </motion.div>
+);
+
+/* ─── Page ─── */
 const Index = () => {
   const heroRef = useRef<HTMLElement>(null);
   const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt();
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-primary/30">
+    <div className="min-h-screen bg-background text-foreground relative">
+
       {/* NAV */}
-      <header className="fixed top-0 left-0 right-0 z-[100] border-b border-white/[0.05] bg-background/80 backdrop-blur-2xl">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 transition-transform hover:scale-105">
-            <div className="relative h-10 w-10 overflow-hidden rounded-xl border border-white/10 p-1 bg-white/5">
+      <header className="fixed top-0 inset-x-0 z-[100] border-b border-white/[0.04] bg-background/70 backdrop-blur-2xl">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="h-8 w-8 rounded-lg border border-white/10 p-1 bg-white/5 group-hover:border-primary/30 transition-all">
               <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
             </div>
-            <span className="font-display text-xl font-black tracking-widest text-white uppercase">
+            <span className="font-display text-sm font-bold tracking-[0.2em] text-white uppercase">
               Agentrix
             </span>
           </Link>
 
-          <nav className="hidden md:flex items-center gap-10">
+          <nav className="hidden md:flex items-center gap-8">
             {['Features', 'Solutions', 'Enterprise', 'Pricing'].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} className="text-sm font-medium text-muted-foreground hover:text-white transition-colors relative group">
+              <a key={item} href={`#${item.toLowerCase()}`}
+                className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white transition-colors relative group"
+              >
                 {item}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
+                <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-primary transition-all group-hover:w-full" />
               </a>
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
-            <Button asChild variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-white">
+          <div className="flex items-center gap-3">
+            <Button asChild variant="ghost" className="h-8 px-4 text-[11px] font-bold uppercase tracking-widest text-muted-foreground hover:text-white hover:bg-white/5">
               <Link to="/auth">Sign In</Link>
             </Button>
-            <Button asChild className="bg-primary hover:bg-primary/90 text-white font-bold rounded-full px-8 shadow-3d transition-all hover:scale-105 hover:shadow-primary/40">
-              <Link to="/auth?tab=signup">Get Started <ChevronRight className="ml-2 h-4 w-4" /></Link>
+            <Button asChild className="h-8 px-5 rounded-full bg-primary text-white text-[11px] font-bold tracking-widest btn-glow transition-all hover:scale-105">
+              <Link to="/auth?tab=signup">Get Started <ChevronRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="pt-20">
-        {/* ═══ HERO ═══ */}
-        <section ref={heroRef} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave} className="relative min-h-screen flex items-center overflow-hidden">
-          <GridBackground />
+      <main className="pt-16">
+        {/* ══ HERO ══ */}
+        <section ref={heroRef} onMouseMove={onMouseMove} onMouseLeave={onMouseLeave}
+          className="relative min-h-screen flex items-center overflow-hidden"
+        >
+          <GridBg />
 
-          <div className="container mx-auto px-6 relative z-10 grid lg:grid-cols-2 gap-20 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-lg">
-                <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-xs font-bold tracking-widest uppercase text-primary-foreground/80">Next-Gen Voice AI</span>
-              </div>
+          <div className="container mx-auto px-6 relative z-10 grid lg:grid-cols-2 gap-20 items-center py-24">
+            <motion.div initial={{ opacity: 0, x: -40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7 }}>
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-card mb-8"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-black tracking-[0.3em] uppercase text-primary">Next-Gen Voice AI Platform</span>
+              </motion.div>
 
-              <h1 className="font-display text-6xl md:text-8xl font-black leading-[0.9] tracking-tighter mb-8">
-                Build <br />
-                <span className="text-gradient">3D Intelligent</span> <br />
-                Voice Agents
+              <h1 className="font-display font-black leading-[0.9] tracking-tighter mb-6 text-[clamp(2.2rem,6vw,4.5rem)]">
+                Build{" "}
+                <span className="text-gradient glitch" data-text="Intelligent">Intelligent</span>
+                <br />
+                Voice Agents<br />
+                <span className="text-muted-foreground/50 text-[0.55em] font-bold tracking-normal">
+                  That Actually Understand You
+                </span>
               </h1>
 
-              <p className="text-xl text-muted-foreground leading-relaxed max-w-xl mb-12">
-                The most advanced platform for creating hyper-realistic, low-latency voice assistants that actually understand your business.
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-md mb-10">
+                The most advanced platform for creating hyper-realistic, low-latency voice assistants powered by frontier AI models.
               </p>
 
-              <div className="flex flex-wrap gap-6">
-                <Button asChild size="lg" className="h-16 px-10 rounded-full bg-white text-black font-black text-lg hover:bg-white/90 transition-all hover:scale-105 active:scale-95 shadow-2xl">
+              <div className="flex flex-wrap gap-4 mb-14">
+                <Button asChild size="lg" className="h-12 px-8 rounded-full bg-white text-black text-xs font-black tracking-widest hover:bg-white/90 transition-all hover:scale-105 shadow-xl">
                   <Link to="/auth?tab=signup">Start Free Trial</Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="h-16 px-10 rounded-full border-white/10 bg-white/5 backdrop-blur-xl font-bold text-lg hover:bg-white/10 transition-all">
-                  <Link to="/app">View Demo</Link>
+                <Button asChild variant="outline" size="lg" className="h-12 px-8 rounded-full border-white/10 bg-white/[0.03] text-xs font-bold tracking-widest hover:bg-white/[0.06] transition-all">
+                  <Link to="/app">View Live Demo</Link>
                 </Button>
               </div>
 
-              <div className="mt-20 flex items-center gap-12 opacity-60">
-                <div className="flex flex-col">
-                  <span className="text-3xl font-black text-white">99.9%</span>
-                  <span className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Uptime</span>
-                </div>
-                <div className="h-10 w-px bg-white/10" />
-                <div className="flex flex-col">
-                  <span className="text-3xl font-black text-white">&lt;200ms</span>
-                  <span className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Latency</span>
-                </div>
-                <div className="h-10 w-px bg-white/10" />
-                <div className="flex flex-col">
-                  <span className="text-3xl font-black text-white">50+</span>
-                  <span className="text-xs uppercase tracking-widest text-muted-foreground mt-1">Voices</span>
-                </div>
+              {/* Stats */}
+              <div className="flex items-center gap-8">
+                {[
+                  { val: "99.9%", label: "Uptime" },
+                  { val: "<200ms", label: "Latency" },
+                  { val: "50+", label: "AI Voices" },
+                ].map(({ val, label }, i) => (
+                  <div key={label} className="flex flex-col">
+                    <span className="text-xl font-black text-white font-mono">{val}</span>
+                    <span className="text-[9px] uppercase tracking-widest text-muted-foreground mt-0.5">{label}</span>
+                    {i < 2 && <div className="absolute ml-24 h-6 border-l border-white/[0.06]" />}
+                  </div>
+                ))}
               </div>
             </motion.div>
 
             <motion.div
               style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1, delay: 0.2 }}
+              transition={{ duration: 0.9, delay: 0.3 }}
               className="hidden lg:flex justify-center"
             >
               <HeroOrb />
@@ -248,71 +273,97 @@ const Index = () => {
           </div>
         </section>
 
-        {/* ═══ TRUSTED BY ═══ */}
-        <section className="py-20 bg-background relative z-10">
+        {/* ══ TRUSTED BY ══ */}
+        <section className="py-16 relative z-10 border-y border-white/[0.04]">
           <div className="container mx-auto px-6">
-            <p className="text-center text-xs font-black uppercase tracking-[0.3em] text-muted-foreground mb-12">Powering the worlds best teams</p>
-            <div className="flex flex-wrap justify-center gap-16 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-700">
-              {integrations.map((item) => (
-                <div key={item.name} className="flex items-center gap-3">
-                  <item.icon className="h-6 w-6" />
-                  <span className="text-lg font-bold tracking-tighter">{item.name}</span>
+            <p className="text-center text-[9px] font-black uppercase tracking-[0.4em] text-muted-foreground/50 mb-10">
+              Integrated with the world's best AI infrastructure
+            </p>
+            <div className="flex flex-wrap justify-center gap-12 md:gap-20 opacity-30 hover:opacity-60 transition-all duration-700">
+              {integrations.map(({ name, icon: Icon }) => (
+                <div key={name} className="flex items-center gap-2.5">
+                  <Icon className="h-4 w-4" />
+                  <span className="text-xs font-bold tracking-wider">{name}</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ═══ FEATURES GRID ═══ */}
-        <section id="features" className="py-32 relative overflow-hidden">
+        {/* ══ FEATURES ══ */}
+        <section id="features" className="py-28 relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-full bg-gradient-to-b from-transparent via-white/[0.05] to-transparent" />
           <div className="container mx-auto px-6 relative z-10">
-            <div className="max-w-3xl mb-24">
-              <h2 className="font-display text-5xl md:text-7xl font-black tracking-tighter mb-8 italic">
-                Beyond <span className="text-primary">Standard</span> AI.
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              className="max-w-2xl mb-20"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-4">Core Capabilities</p>
+              <h2 className="font-display text-[clamp(1.8rem,4vw,3.2rem)] font-black tracking-tighter leading-tight mb-4">
+                Beyond Standard AI.<br />
+                <span className="text-muted-foreground/40">Built for What's Next.</span>
               </h2>
-              <p className="text-2xl text-muted-foreground font-medium">
-                Our architecture is built for mission-critical applications that require precision, speed, and reliability.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Our architecture is built for mission-critical applications that require precision, speed, and rock-solid reliability.
               </p>
-            </div>
+            </motion.div>
 
-            <div className="grid md:grid-cols-3 gap-8 perspective-[2000px]">
-              {features.map((f, i) => (
-                <FeatureCard key={f.title} {...f} index={i} />
-              ))}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 perspective-[2000px]">
+              {features.map((f, i) => <FeatureCard key={f.title} {...f} index={i} />)}
             </div>
           </div>
         </section>
 
-        {/* ═══ IMMERSIVE CTA ═══ */}
-        <section className="py-40 relative">
+        {/* ══ HOW IT WORKS ══ */}
+        <section className="py-28 relative overflow-hidden">
+          <div className="container mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-20 items-center">
+              <motion.div initial={{ opacity: 0, x: -30 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-4">Process</p>
+                <h2 className="font-display text-[clamp(1.8rem,4vw,3.2rem)] font-black tracking-tighter mb-6">
+                  From Idea to Live<br />
+                  in Minutes.
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  No boilerplate. No complexity. Just powerful voice AI configured through an intuitive 7D studio interface.
+                </p>
+              </motion.div>
+
+              <div className="space-y-0">
+                {steps.map((s, i) => <Step key={s.num} {...s} index={i} />)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══ CTA ══ */}
+        <section className="py-24 relative">
           <div className="container mx-auto px-6">
             <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="glass-card rounded-[3rem] p-12 md:p-24 text-center relative overflow-hidden preserve-3d"
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              className="glass-card rounded-3xl p-12 md:p-20 text-center relative overflow-hidden"
             >
-              {/* Animated Background for CTA */}
-              <div className="absolute inset-0 bg-primary/10 opacity-30" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
               <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-primary/20 to-transparent blur-3xl opacity-50"
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                className="absolute -top-1/2 -left-1/4 w-[150%] h-[150%] opacity-20"
+                style={{ background: "conic-gradient(from 0deg, hsla(263,90%,60%,0.15), transparent 30%, hsla(185,90%,55%,0.15), transparent 70%)" }}
               />
-
               <div className="relative z-10">
-                <Star className="h-16 w-16 text-primary mx-auto mb-12 animate-pulse" />
-                <h2 className="font-display text-6xl md:text-8xl font-black tracking-tighter mb-8 leading-none italic">
-                  READY FOR THE <br /> FUTURE?
-                </h2>
-                <p className="text-2xl text-muted-foreground max-w-2xl mx-auto mb-16">
-                  Join 5,000+ developers building the next generation of conversational apps.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                  <Button asChild size="lg" className="h-20 px-16 rounded-full bg-primary text-white font-black text-2xl hover:scale-110 transition-all shadow-primary/40 shadow-[0_0_50px]">
-                    <Link to="/auth?tab=signup">Get Started Now</Link>
-                  </Button>
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 mx-auto mb-8">
+                  <Zap className="h-5 w-5 text-primary" />
                 </div>
+                <h2 className="font-display text-[clamp(2rem,5vw,3.8rem)] font-black tracking-tighter mb-4 leading-tight">
+                  Ship Your AI Agent.<br />
+                  <span className="text-muted-foreground/40">Ship it Today.</span>
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-10">
+                  Join 5,000+ developers building the next generation of conversational applications with Agentrix.
+                </p>
+                <Button asChild size="lg" className="h-12 px-10 rounded-full bg-primary text-white text-xs font-black tracking-widest hover:scale-105 transition-all btn-glow">
+                  <Link to="/auth?tab=signup">Start Building Free <ArrowUpRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
               </div>
             </motion.div>
           </div>
@@ -320,22 +371,19 @@ const Index = () => {
       </main>
 
       {/* FOOTER */}
-      <footer className="py-20 border-t border-white/5">
-        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg border border-white/10 p-1 bg-white/5">
-                <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
-              </div>
-              <span className="font-display text-lg font-black tracking-widest text-white uppercase">Agentrix</span>
+      <footer className="py-12 border-t border-white/[0.04]">
+        <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-lg border border-white/10 p-1 bg-white/5">
+              <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
             </div>
-            <p className="text-sm text-muted-foreground">© 2024 Agentrix Inc. Built for the advanced era.</p>
+            <span className="font-display text-[11px] font-bold tracking-[0.2em] text-white uppercase">Agentrix</span>
+            <span className="text-[10px] text-muted-foreground ml-2">© 2026 — Built for the advanced era.</span>
           </div>
-
-          <div className="flex gap-12 text-sm font-bold uppercase tracking-widest text-muted-foreground">
-            <a href="#" className="hover:text-white">Twitter</a>
-            <a href="#" className="hover:text-white">Github</a>
-            <a href="#" className="hover:text-white">Discord</a>
+          <div className="flex gap-8 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            {['Twitter', 'Github', 'Discord'].map(l => (
+              <a key={l} href="#" className="hover:text-white transition-colors">{l}</a>
+            ))}
           </div>
         </div>
       </footer>
@@ -343,33 +391,4 @@ const Index = () => {
   );
 };
 
-/* ─── Feature Card Component ─── */
-const FeatureCard = ({ title, desc, icon: Icon, color, index }: any) => {
-  const { rotateX, rotateY, onMouseMove, onMouseLeave } = useTilt();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.1 }}
-      onMouseMove={onMouseMove}
-      onMouseLeave={onMouseLeave}
-      style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-      className="group relative h-full glass-card glass-card-hover p-10 rounded-[2rem] preserve-3d"
-    >
-      <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mb-8 shadow-2xl transition-transform group-hover:translate-z-10 translate-z-0`}>
-        <Icon className="h-8 w-8 text-white" />
-      </div>
-
-      <h3 className="font-display text-2xl font-black text-white mb-4 translate-z-20">{title}</h3>
-      <p className="text-muted-foreground leading-relaxed translate-z-10">{desc}</p>
-
-      {/* Decorative Glow */}
-      <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-primary/5 blur-3xl rounded-full group-hover:bg-primary/20 transition-all duration-700" />
-    </motion.div>
-  );
-};
-
 export default Index;
-
