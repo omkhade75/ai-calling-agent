@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { assistants as assistantsApi } from "@/lib/agentrix-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +21,12 @@ import {
 import { Slider } from "@/components/ui/slider";
 
 import { VoicePlayground } from "@/components/voice/VoicePlayground";
-import { Mic, Plus, Save, LogOut, Sparkles, Trash2, Brain, AudioWaveform, Languages, Wrench, Volume2, Phone, Code, Copy, Check, ChevronRight } from "lucide-react";
+import {
+  Mic, Plus, Save, LogOut, Sparkles, Trash2, Brain,
+  AudioWaveform, Languages, Wrench, Volume2, Phone,
+  Code, Copy, Check, ChevronRight, Settings, Layout,
+  Activity, Zap, Shield, Wand2, Orbit
+} from "lucide-react";
 import agentrixLogo from "@/assets/agentrix-logo.png";
 
 type VoiceAssistantRow = {
@@ -44,7 +49,7 @@ type VoiceAssistantRow = {
 const defaultAssistantDraft = (): Partial<VoiceAssistantRow> => ({
   name: "New assistant",
   description: "",
-  system_prompt: "You are a friendly voice assistant. Keep responses short, ask clarifying questions, and be helpful.",
+  system_prompt: "You are a friendly voice assistant. Keep responses short and helpful.",
   language: "en",
   conversation_mode: "friendly",
   temperature: 0.7,
@@ -55,62 +60,16 @@ const defaultAssistantDraft = (): Partial<VoiceAssistantRow> => ({
 });
 
 const MODELS = [
-  { value: "gpt-4o", label: "OpenAI GPT-4o" },
-  { value: "gpt-4o-mini", label: "OpenAI GPT-4o Mini" },
-  { value: "gpt-3.5-turbo", label: "OpenAI GPT-3.5 Turbo" },
-  { value: "claude-3.5-sonnet", label: "Anthropic Claude 3.5 Sonnet" },
-  { value: "claude-3-haiku", label: "Anthropic Claude 3 Haiku" },
-  { value: "gemini-2.5-flash", label: "Google Gemini 2.5 Flash" },
-  { value: "gemini-2.5-pro", label: "Google Gemini 2.5 Pro" },
-  { value: "llama-3.1-70b", label: "Meta Llama 3.1 70B" },
+  { value: "gpt-4o", label: "OpenAI GPT-4o", icon: Brain },
+  { value: "gpt-4o-mini", label: "OpenAI GPT-4o Mini", icon: Brain },
+  { value: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet", icon: Sparkles },
+  { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro", icon: Zap },
 ];
 
 const VOICES = [
   { value: "JBFqnCBsd6RMkjVDRZzb", label: "George — warm, authoritative" },
   { value: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — clear, professional" },
-  { value: "CwhRBWXzGAHq8TQ4Fs17", label: "Roger — calm, narrator" },
-  { value: "FGY2WhTYpPnrIDTdsKH5", label: "Laura — gentle, friendly" },
   { value: "IKne3meq5aSn9XLyUdCD", label: "Charlie — energetic, youthful" },
-  { value: "pFZP5JQG7iQjIQuC4Bku", label: "Lily — soft, warm" },
-  { value: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — deep, confident" },
-  { value: "iP95p4xoKVk53GoZ742B", label: "Chris — casual, conversational" },
-];
-
-const TRANSCRIBERS = [
-  { value: "deepgram", label: "Deepgram Nova-2" },
-  { value: "assembly-ai", label: "AssemblyAI" },
-  { value: "whisper", label: "OpenAI Whisper" },
-  { value: "google-stt", label: "Google Cloud STT" },
-];
-
-const LANGUAGES = [
-  { value: "en", label: "English" },
-  { value: "es", label: "Spanish" },
-  { value: "fr", label: "French" },
-  { value: "de", label: "German" },
-  { value: "pt", label: "Portuguese" },
-  { value: "ja", label: "Japanese" },
-  { value: "ko", label: "Korean" },
-  { value: "zh", label: "Chinese" },
-  { value: "hi", label: "Hindi" },
-  { value: "ar", label: "Arabic" },
-];
-
-const MODES = [
-  { value: "friendly", label: "Friendly" },
-  { value: "sales", label: "Sales" },
-  { value: "support", label: "Support" },
-  { value: "neutral", label: "Neutral" },
-  { value: "professional", label: "Professional" },
-];
-
-const FUNCTIONS = [
-  { value: "webhook", label: "Webhook POST" },
-  { value: "crm-update", label: "CRM Update" },
-  { value: "calendar-book", label: "Calendar Booking" },
-  { value: "knowledge-lookup", label: "Knowledge Base Lookup" },
-  { value: "send-email", label: "Send Email" },
-  { value: "transfer-call", label: "Transfer Call" },
 ];
 
 export default function VoiceAgentStudio() {
@@ -119,15 +78,9 @@ export default function VoiceAgentStudio() {
   const [draft, setDraft] = useState<Partial<VoiceAssistantRow>>(defaultAssistantDraft());
   const [loading, setLoading] = useState(false);
   const [builderTab, setBuilderTab] = useState("model");
-
-  // Onboarding Wizard State
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
-  const [wizardData, setWizardData] = useState({
-    name: "",
-    businessType: "",
-    requirements: "",
-  });
+  const [wizardData, setWizardData] = useState({ name: "", businessType: "", requirements: "" });
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -135,8 +88,8 @@ export default function VoiceAgentStudio() {
   const userId = user?.id;
 
   const activeAssistant = useMemo(() => assistants.find((a) => a.id === activeId) ?? null, [assistants, activeId]);
-
   const tools = useMemo(() => (draft.tools ?? {}) as Record<string, any>, [draft.tools]);
+
   const setTool = useCallback((key: string, val: any) => {
     setDraft((p) => ({ ...p, tools: { ...(p.tools ?? {}), [key]: val } }));
   }, []);
@@ -163,97 +116,19 @@ export default function VoiceAgentStudio() {
       })) as VoiceAssistantRow[];
       setAssistants(rows);
       if (rows[0] && !activeId) setActiveId(rows[0].id);
-    } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Load error", description: e instanceof Error ? e.message : "Failed" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Sync Error", description: "Could not fetch assistants." });
     } finally {
       setLoading(false);
     }
   }, [toast, activeId]);
 
-  useEffect(() => {
-    if (userId) {
-      load();
-    }
-  }, [userId, load]);
+  useEffect(() => { if (userId) load(); }, [userId, load]);
 
   useEffect(() => {
     if (!activeAssistant) return;
     setDraft({ ...activeAssistant, tools: activeAssistant.tools ?? defaultAssistantDraft().tools });
   }, [activeAssistant]);
-
-  const handleWizardSubmit = async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      // Generate system prompt based on inputs
-      const generatedPrompt = `You are a professional voice assistant for ${wizardData.businessType || "a business"} named ${wizardData.name}.
-Your primary goal is to: ${wizardData.requirements}.
-
-Guidelines:
-- Speak clearly and concisely.
-- Be polite and professional at all times.
-- Ask clarifying questions if the user's request is ambiguous.
-- If you don't know the answer, politely offer to transfer the call to a human agent.
-- Keep responses short (under 2-3 sentences) to maintain a natural conversation flow.`;
-
-      const defaults = defaultAssistantDraft();
-      const data = await assistantsApi.create({
-        name: wizardData.name || `Assistant ${assistants.length + 1}`,
-        description: `${wizardData.businessType} Assistant`,
-        systemPrompt: generatedPrompt,
-        language: defaults.language,
-        conversationMode: defaults.conversation_mode,
-        temperature: defaults.temperature,
-        voiceProvider: defaults.voice_provider,
-        voiceId: defaults.voice_id,
-        voiceSpeed: defaults.voice_speed,
-        tools: defaults.tools,
-      }) as any;
-
-      const row: VoiceAssistantRow = {
-        id: data._id || data.id,
-        user_id: data.userId,
-        name: data.name,
-        description: data.description ?? null,
-        system_prompt: data.systemPrompt ?? '',
-        language: data.language ?? 'en',
-        conversation_mode: data.conversationMode ?? 'friendly',
-        temperature: data.temperature ?? 0.7,
-        voice_provider: data.voiceProvider ?? 'elevenlabs',
-        voice_id: data.voiceId ?? null,
-        voice_speed: data.voiceSpeed ?? 1.0,
-        tools: data.tools ?? {},
-        created_at: data.createdAt,
-        updated_at: data.updatedAt,
-      };
-
-      setAssistants((p) => [row, ...p]);
-      setActiveId(row.id);
-      toast({ title: "Assistant Created", description: `"${row.name}" has been configured.` });
-      setWizardOpen(false);
-      setWizardStep(1);
-      setWizardData({ name: "", businessType: "", requirements: "" });
-    } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteAssistant = useCallback(async () => {
-    if (!activeId) return;
-    setLoading(true);
-    try {
-      await assistantsApi.remove(activeId);
-      setAssistants((p) => p.filter((a) => a.id !== activeId));
-      setActiveId(null);
-      toast({ title: "Deleted" });
-    } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed" });
-    } finally {
-      setLoading(false);
-    }
-  }, [activeId, toast]);
 
   const saveAssistant = useCallback(async () => {
     if (!activeId) return;
@@ -271,441 +146,391 @@ Guidelines:
         voiceSpeed: Number(draft.voice_speed ?? 1.0),
         tools: draft.tools ?? {},
       });
-      toast({ title: "Saved" });
+      toast({ title: "Configuration Updated", description: "Changes saved to the 3D core." });
       await load();
-    } catch (e: unknown) {
-      toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Failed" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to persist changes." });
     } finally {
       setLoading(false);
     }
   }, [activeId, draft, toast, load]);
+
+  const deleteAssistant = async () => {
+    if (!activeId) return;
+    if (!confirm("Are you sure? This action is irreversible.")) return;
+    setLoading(true);
+    try {
+      await assistantsApi.remove(activeId);
+      setAssistants((p) => p.filter((a) => a.id !== activeId));
+      setActiveId(null);
+      toast({ title: "Assistant Purged" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to delete." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWizardSubmit = async () => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const generatedPrompt = `You are an advanced 3D Voice AI for ${wizardData.businessType} named ${wizardData.name}. Goal: ${wizardData.requirements}.`;
+      const defaults = defaultAssistantDraft();
+      await assistantsApi.create({
+        name: wizardData.name || "New Protocol",
+        description: wizardData.businessType,
+        systemPrompt: generatedPrompt,
+        ...defaults,
+      });
+      await load();
+      setWizardOpen(false);
+      toast({ title: "Protocol Initiated", description: "Your new AI is ready." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to create." });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signOut = useCallback(async () => {
     logout();
     navigate("/", { replace: true });
   }, [navigate, logout]);
 
-  if (!userId) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <p className="text-sm text-muted-foreground">Loading studio…</p>
-      </div>
-    );
-  }
+  if (!userId) return null;
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/40 glass">
-        <div className="flex h-12 items-center justify-between px-4">
-          <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-foreground/90 hover:text-primary transition-colors">
-            <div className="flex h-8 w-8 shrink-0 overflow-hidden rounded-lg relative drop-shadow-md">
-              <img src={agentrixLogo} alt="AGENTRIX" className="h-full w-full object-cover absolute inset-0" />
+    <div className="flex h-screen flex-col bg-background overflow-hidden preserve-3d">
+      {/* HEADER */}
+      <header className="h-20 border-b border-white/[0.05] bg-background/80 backdrop-blur-3xl flex items-center justify-between px-8 z-50">
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-3 transition-transform hover:scale-105">
+            <div className="h-10 w-10 p-1.5 rounded-xl border border-white/10 bg-white/5 shadow-2xl">
+              <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
             </div>
-            AGENTRIX <span className="text-primary">Studio</span>
+            <span className="font-display text-xl font-black tracking-widest text-white uppercase italic">
+              Studio<span className="text-primary">.3D</span>
+            </span>
           </Link>
-          <div className="flex items-center gap-1.5">
-            <Button variant="ghost" size="sm" asChild><Link to="/phone-numbers"><Phone className="h-3.5 w-3.5" /> Numbers</Link></Button>
-            <Button variant="ghost" size="sm" onClick={() => setWizardOpen(true)} disabled={loading}><Plus className="h-3.5 w-3.5" /> New</Button>
-            <Button variant="hero" size="sm" onClick={saveAssistant} disabled={loading || !activeId}><Save className="h-3.5 w-3.5" /> Save</Button>
-            <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="h-3.5 w-3.5" /></Button>
-          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" asChild className="text-muted-foreground hover:text-white">
+            <Link to="/phone-numbers"><Phone className="mr-2 h-4 w-4" /> Comms</Link>
+          </Button>
+          <div className="h-6 w-px bg-white/10" />
+          <Button onClick={saveAssistant} disabled={loading || !activeId} className="bg-primary hover:bg-primary/90 text-white font-bold rounded-full px-6 shadow-3d translate-z-10">
+            <Save className="mr-2 h-4 w-4" /> Deploy Changes
+          </Button>
+          <Button variant="ghost" size="icon" onClick={signOut} className="rounded-full hover:bg-white/5">
+            <LogOut className="h-5 w-5 text-muted-foreground" />
+          </Button>
         </div>
       </header>
 
-      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar: assistant list */}
-        <aside className="hidden w-64 shrink-0 border-r border-sidebar-border bg-sidebar lg:block">
-          <div className="flex h-full flex-col">
-            <div className="border-b border-sidebar-border px-4 py-3">
-              <p className="font-display text-xs font-semibold tracking-wide text-sidebar-foreground/70 uppercase">Assistants</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-2">
-              {assistants.length === 0 ? (
-                <p className="px-2 py-4 text-xs text-sidebar-foreground/50">No assistants yet.</p>
-              ) : (
-                <div className="grid gap-1">
-                  {assistants.map((a) => (
-                    <button key={a.id} onClick={() => setActiveId(a.id)}
-                      className={`group relative flex w-full flex-col gap-1 rounded-xl px-4 py-3 text-left transition-all hover:bg-sidebar-accent/50 ${a.id === activeId ? "bg-sidebar-accent shadow-sm ring-1 ring-sidebar-ring/20" : "text-sidebar-foreground/70 hover:text-sidebar-foreground"}`}>
-                      {a.id === activeId && <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-full" />}
-                      <div className="flex items-center justify-between">
-                        <p className={`font-display text-sm font-semibold transition-colors ${a.id === activeId ? "text-primary" : "text-sidebar-foreground group-hover:text-primary"}`}>{a.name}</p>
-                        {a.id === activeId && <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(124,58,237,0.5)]" />}
-                      </div>
-                      <p className="line-clamp-1 text-[10px] text-muted-foreground/80 font-medium tracking-wide uppercase">{a.conversation_mode} · {a.language}</p>
-                    </button>
-                  ))}
+        {/* SIDEBAR */}
+        <aside className="w-80 border-r border-white/[0.05] bg-white/[0.02] backdrop-blur-3xl flex flex-col">
+          <div className="p-6 border-b border-white/[0.05] flex justify-between items-center">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Assistants</h2>
+            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg hover:bg-primary/20 hover:text-primary transition-colors" onClick={() => setWizardOpen(true)}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {assistants.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setActiveId(a.id)}
+                className={`w-full group relative p-4 rounded-2xl transition-all duration-300 text-left border \${a.id === activeId ? "bg-primary/10 border-primary/30 shadow-3d" : "bg-transparent border-transparent hover:bg-white/5 hover:border-white/10"}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`font-display font-bold \${a.id === activeId ? "text-white" : "text-muted-foreground group-hover:text-white"}`}>{a.name}</span>
+                  {a.id === activeId && <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
                 </div>
-              )}
-            </div>
+                <div className="flex gap-2 text-[9px] font-black uppercase tracking-wider opacity-60">
+                  <span className="flex items-center gap-1"><Languages className="h-2 w-2" /> {a.language}</span>
+                  <span className="flex items-center gap-1"><Zap className="h-2 w-2" /> {a.conversation_mode}</span>
+                </div>
+              </button>
+            ))}
           </div>
         </aside>
 
-        {/* Builder */}
-        <main className="flex flex-1 flex-col overflow-y-auto lg:flex-row">
-          <section className="flex-1 overflow-y-auto border-r border-border/30 p-4 lg:p-6">
+        {/* EDITOR */}
+        <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          <section className="flex-1 overflow-y-auto p-10 custom-scrollbar">
             {!activeId ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">Select or create an assistant to get started.</p>
-                  <Button variant="hero" size="sm" className="mt-3" onClick={() => setWizardOpen(true)} disabled={loading}>
-                    <Plus className="h-3.5 w-3.5" /> Create Assistant
+              <div className="h-full flex items-center justify-center text-center">
+                <div className="max-w-md">
+                  <Orbit className="h-16 w-16 text-primary/20 mx-auto mb-6" />
+                  <h3 className="text-xl font-black tracking-tight mb-2">NO PROTOCOL ACTIVE</h3>
+                  <p className="text-muted-foreground mb-8 uppercase tracking-widest text-[10px]">Select an assistant or spawn a new one to begin.</p>
+                  <Button onClick={() => setWizardOpen(true)} className="bg-white text-black font-black rounded-full px-8 h-14 hover:scale-105 transition-all">
+                    <Plus className="mr-2 h-5 w-5" /> Initiate New AI
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="mx-auto max-w-2xl">
-                {/* Name & description */}
-                <div className="mb-5 flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <Input value={draft.name ?? ""} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-                      className="border-none bg-transparent px-0 font-display text-lg font-bold focus-visible:ring-0" placeholder="Assistant name" />
-                    <Input value={draft.description ?? ""} onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
-                      className="mt-1 border-none bg-transparent px-0 text-xs text-muted-foreground focus-visible:ring-0" placeholder="Short description…" />
+              <div className="max-w-4xl mx-auto space-y-12">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <input
+                      value={draft.name ?? ""}
+                      onChange={(e) => setDraft(p => ({ ...p, name: e.target.value }))}
+                      className="bg-transparent border-none text-2xl font-black tracking-tighter text-white focus:outline-none focus:ring-0 w-full italic"
+                    />
+                    <input
+                      value={draft.description ?? ""}
+                      onChange={(e) => setDraft(p => ({ ...p, description: e.target.value }))}
+                      className="bg-transparent border-none text-muted-foreground font-medium text-sm focus:outline-none focus:ring-0 w-full uppercase tracking-widest"
+                      placeholder="Protocol description..."
+                    />
                   </div>
-                  <Button variant="ghost" size="icon" onClick={deleteAssistant} disabled={loading} className="text-destructive hover:bg-destructive/10">
-                    <Trash2 className="h-4 w-4" />
+                  <Button variant="ghost" onClick={deleteAssistant} className="h-12 w-12 rounded-2xl text-destructive hover:bg-destructive/10">
+                    <Trash2 className="h-5 w-5" />
                   </Button>
                 </div>
 
-                <Separator className="mb-5" />
-
-                {/* Tabbed builder — Vapi style */}
-                <Tabs value={builderTab} onValueChange={setBuilderTab}>
-                  <TabsList className="mb-6 inline-flex h-9 items-center justify-start rounded-none border-b border-border/40 bg-transparent p-0 w-full gap-6">
-                    <TabsTrigger value="model" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Model</TabsTrigger>
-                    <TabsTrigger value="voice" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Voice</TabsTrigger>
-                    <TabsTrigger value="transcriber" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Transcriber</TabsTrigger>
-                    <TabsTrigger value="functions" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Functions</TabsTrigger>
-                    <TabsTrigger value="advanced" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Advanced</TabsTrigger>
-                    <TabsTrigger value="integration" className="rounded-none border-b-2 border-transparent px-2 pb-2 pt-1.5 font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none bg-transparent hover:text-primary/80 transition-all">Integration</TabsTrigger>
+                <Tabs value={builderTab} onValueChange={setBuilderTab} className="space-y-10">
+                  <TabsList className="bg-white/5 border border-white/10 rounded-2xl h-14 p-1.5 w-full flex justify-between overflow-x-auto no-scrollbar">
+                    {["model", "voice", "functions", "integration"].map((tab) => (
+                      <TabsTrigger key={tab} value={tab} className="flex-1 rounded-xl font-black uppercase tracking-widest text-[10px] data-[state=active]:bg-primary data-[state=active]:text-white">
+                        {tab}
+                      </TabsTrigger>
+                    ))}
                   </TabsList>
 
-                  {/* INTEGRATION TAB */}
-                  <TabsContent value="integration" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3 bg-secondary/5 border-b border-border/40">
-                        <CardTitle className="font-display text-sm flex items-center gap-2"><Code className="h-4 w-4 text-primary" /> Business Integration</CardTitle>
-                        <CardDescription className="text-xs">Copy these credentials to deploy this assistant on your website.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-5 pt-5">
-                        <div className="grid gap-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Assistant ID</Label>
-                          <div className="flex gap-2">
-                            <Input readOnly value={activeId || ""} className="bg-muted font-mono text-xs" />
-                            <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(activeId || ""); toast({ title: "Copied!" }); }}>
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={builderTab}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <TabsContent value="model" className="mt-0 space-y-8">
+                        <div className="glass-card rounded-[2.5rem] p-8 border-white/10 space-y-8">
+                          <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">AI CORE ENGINE</Label>
+                              <Select value={tools.model ?? "gpt-4o"} onValueChange={(v) => setTool("model", v)}>
+                                <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/10 px-6 font-bold">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-white/10">
+                                  {MODELS.map(m => (
+                                    <SelectItem key={m.value} value={m.value} className="focus:bg-primary font-bold">
+                                      {m.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center ml-1">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">CREATIVITY RATIO</Label>
+                                <span className="text-xs font-black text-primary">{(draft.temperature ?? 0.7).toFixed(1)}</span>
+                              </div>
+                              <div className="h-14 flex items-center px-4 bg-white/5 rounded-2xl border border-white/10">
+                                <Slider value={[draft.temperature ?? 0.7]} onValueChange={([v]) => setDraft(p => ({ ...p, temperature: v }))} min={0} max={1.5} step={0.1} className="w-full" />
+                              </div>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">Unique identifier for this assistant configuration.</p>
-                        </div>
 
-                        <Separator />
-
-                        <div className="grid gap-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">Web Embed Code</Label>
-                          <div className="rounded-lg border bg-slate-950 p-3 relative group">
-                            <pre className="text-[10px] text-slate-300 overflow-x-auto whitespace-pre-wrap font-mono">
-                              {`<script src="https://cdn.agentrix.com/widget.js"></script>
-<script>
-  Agentrix.init({
-    assistantId: "${activeId}",
-    apiKey: "${user?.publicKey || 'YOUR_PUBLIC_KEY'}",
-    position: "bottom-right"
-  });
-</script>`}
-                            </pre>
-                            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 text-white hover:bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => { navigator.clipboard.writeText(`<script src="https://cdn.agentrix.com/widget.js"></script>\n<script>\n  Agentrix.init({\n    assistantId: "${activeId}",\n    apiKey: "${user?.publicKey || 'YOUR_PUBLIC_KEY'}",\n    position: "bottom-right"\n  });\n</script>`); toast({ title: "Copied!" }); }}>
-                              <Copy className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground">Place this code in your website's &lt;body&gt; tag.</p>
-                        </div>
-
-                        <Separator />
-
-                        <div className="grid gap-2">
-                          <Label className="text-xs font-semibold uppercase text-muted-foreground">API Usage</Label>
-                          <div className="rounded-lg border bg-muted p-3">
-                            <p className="text-xs text-muted-foreground">
-                              You can also trigger calls programmatically:
-                            </p>
-                            <code className="mt-2 block rounded bg-background p-2 text-[10px] font-mono border">
-                              POST https://api.agentrix.com/v1/call<br />
-                              Authorization: Bearer {user?.publicKey || "YOUR_PUBLIC_KEY"}<br />
-                              &#123; "assistantId": "{activeId}", "phone": "+919876543210" &#125;
-                            </code>
+                          <div className="space-y-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">SYSTEM DIRECTIVES</Label>
+                            <Textarea
+                              value={draft.system_prompt ?? ""}
+                              onChange={(e) => setDraft(p => ({ ...p, system_prompt: e.target.value }))}
+                              className="min-h-[250px] rounded-[2.5rem] bg-white/5 border-white/10 p-8 font-medium leading-relaxed resize-none focus:ring-primary focus:border-primary"
+                              placeholder="Define the behavior protocol..."
+                            />
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
+                      </TabsContent>
 
-                  {/* MODEL TAB */}
-                  <TabsContent value="model" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-display text-sm">LLM Provider</CardTitle>
-                        <CardDescription className="text-xs">Choose the model that powers your assistant's intelligence.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Model</Label>
-                          <Select value={tools.model ?? "gpt-4o"} onValueChange={(v) => setTool("model", v)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {MODELS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">System Prompt</Label>
-                          <Textarea value={draft.system_prompt ?? ""} onChange={(e) => setDraft((p) => ({ ...p, system_prompt: e.target.value }))}
-                            className="min-h-[120px] text-xs" placeholder="You are a helpful assistant…" />
-                        </div>
-                        <div className="grid gap-1.5">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-xs">Temperature</Label>
-                            <span className="text-xs text-muted-foreground">{(draft.temperature ?? 0.7).toFixed(1)}</span>
+                      <TabsContent value="voice" className="mt-0">
+                        <div className="glass-card rounded-[2.5rem] p-8 border-white/10 space-y-10">
+                          <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">NEURAL PROVIDER</Label>
+                              <div className="h-14 flex items-center px-6 bg-white/5 rounded-2xl border border-white/10 font-black uppercase tracking-widest text-xs">
+                                {draft.voice_provider}
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">VOICE ID OVERRIDE</Label>
+                              <Input value={draft.voice_id ?? ""} onChange={(e) => setDraft(p => ({ ...p, voice_id: e.target.value }))} className="h-14 rounded-2xl bg-white/5 border-white/10 px-6 font-mono" />
+                            </div>
                           </div>
-                          <Slider value={[draft.temperature ?? 0.7]} onValueChange={([v]) => setDraft((p) => ({ ...p, temperature: v }))}
-                            min={0} max={2} step={0.1} className="w-full" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
 
-                  {/* VOICE TAB */}
-                  <TabsContent value="voice" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-display text-sm">Voice Configuration</CardTitle>
-                        <CardDescription className="text-xs">Select the voice and tune its characteristics.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Voice Provider</Label>
-                          <Select value={draft.voice_provider ?? "elevenlabs"} onValueChange={(v) => setDraft((p) => ({ ...p, voice_provider: v }))}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
-                              <SelectItem value="openai-tts">OpenAI TTS</SelectItem>
-                              <SelectItem value="playht">PlayHT</SelectItem>
-                              <SelectItem value="deepgram-tts">Deepgram Aura</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="grid gap-4">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">PREMIUM NEURAL PROFILES</Label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {VOICES.map(v => (
+                                <button key={v.value} onClick={() => setDraft(p => ({ ...p, voice_id: v.value }))} className={`p-6 rounded-2xl border text-left transition-all group \${draft.voice_id === v.value ? "bg-primary border-primary shadow-3d" : "bg-white/5 border-white/10 hover:border-primary/50"}`}>
+                                  <div className="flex justify-between items-center mb-4">
+                                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center \${draft.voice_id === v.value ? "bg-white/20" : "bg-primary/10"}`}>
+                                      <Volume2 className={`h-5 w-5 \${draft.voice_id === v.value ? "text-white" : "text-primary"}`} />
+                                    </div>
+                                    {draft.voice_id === v.value && <div className="h-2 w-2 rounded-full bg-white animate-pulse" />}
+                                  </div>
+                                  <p className={`font-display font-bold text-sm \${draft.voice_id === v.value ? "text-white" : "text-muted-foreground group-hover:text-white"}`}>{v.label.split("—")[0]}</p>
+                                  <p className={`text-[10px] uppercase tracking-widest mt-1 opacity-60 \${draft.voice_id === v.value ? "text-white" : "text-muted-foreground"}`}>HD Neural</p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Voice Preset</Label>
-                          <div className="space-y-1">
-                            {VOICES.map((v) => (
-                              <div key={v.value} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs transition cursor-pointer ${draft.voice_id === v.value ? "border-primary/30 bg-primary/5 text-foreground" : "border-border/40 text-muted-foreground hover:border-border"}`}
-                                onClick={() => setDraft((p) => ({ ...p, voice_id: v.value }))}>
-                                <span>{v.label}</span>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => {
-                                  e.stopPropagation();
-                                  window.speechSynthesis.cancel();
-                                  const u = new SpeechSynthesisUtterance(`Hi, I'm ${v.label.split("—")[0].trim()}. How can I help you today?`);
-                                  u.lang = draft.language ?? "en";
-                                  window.speechSynthesis.speak(u);
-                                }}>
-                                  <Volume2 className="h-3 w-3" />
+                      </TabsContent>
+
+                      <TabsContent value="integration" className="mt-0">
+                        <div className="glass-card rounded-[2.5rem] p-10 border-white/10 space-y-10">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-2xl bg-primary/20 flex items-center justify-center">
+                              <Code className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-black italic tracking-tighter">SDK INTEGRATION</h3>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Universal Deployment Module</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="space-y-3">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">PROTOCOL ID</Label>
+                              <div className="flex gap-4">
+                                <Input readOnly value={activeId || ""} className="h-14 rounded-2xl bg-white/5 border-white/10 px-6 font-mono font-bold text-xs" />
+                                <Button variant="outline" className="h-14 w-14 rounded-2xl border-white/10 hover:bg-white/5" onClick={() => { navigator.clipboard.writeText(activeId || ""); toast({ title: "Copied" }); }}>
+                                  <Copy className="h-5 w-5" />
                                 </Button>
                               </div>
-                            ))}
+                            </div>
+
+                            <div className="space-y-3">
+                              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">WEB INJECTION MODULE</Label>
+                              <div className="rounded-[2.5rem] bg-zinc-950 border border-white/10 p-8 relative group overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4">
+                                  <Button variant="ghost" size="icon" className="h-10 w-10 text-white hover:bg-white/10" onClick={() => { navigator.clipboard.writeText(`<script src="https://agentrix.ai/v1/sdk.js"></script>`); toast({ title: "Copied" }); }}>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <pre className="text-xs font-mono text-primary-foreground/70 leading-relaxed overflow-x-auto">
+                                  <code>{`<script src="https://agentrix.ai/v1/sdk.js"></script>
+<script>
+  Agentrix.spawn({
+    id: "${activeId || ""}",
+    key: "AGENTRIX_PR_101",
+    theme: "dark-3d"
+  });
+</script>`}</code>
+                                </pre>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Custom Voice ID</Label>
-                          <Input value={draft.voice_id ?? ""} onChange={(e) => setDraft((p) => ({ ...p, voice_id: e.target.value }))}
-                            placeholder="Paste any ElevenLabs / provider voice ID" className="text-xs font-mono" />
-                          <p className="text-[10px] text-muted-foreground">Override the preset above with any voice ID from your provider.</p>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-xs">Speed</Label>
-                            <span className="text-xs text-muted-foreground">{(draft.voice_speed ?? 1.0).toFixed(1)}x</span>
-                          </div>
-                          <Slider value={[draft.voice_speed ?? 1.0]} onValueChange={([v]) => setDraft((p) => ({ ...p, voice_speed: v }))}
-                            min={0.5} max={2.0} step={0.1} className="w-full" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* TRANSCRIBER TAB */}
-                  <TabsContent value="transcriber" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-display text-sm">Speech-to-Text</CardTitle>
-                        <CardDescription className="text-xs">Choose a transcription provider for real-time STT.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Transcriber</Label>
-                          <Select value={tools.transcriber ?? "deepgram"} onValueChange={(v) => setTool("transcriber", v)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {TRANSCRIBERS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Language</Label>
-                          <Select value={draft.language ?? "en"} onValueChange={(v) => setDraft((p) => ({ ...p, language: v }))}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {LANGUAGES.map((l) => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* FUNCTIONS TAB */}
-                  <TabsContent value="functions" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-display text-sm">Tool Calling & Functions</CardTitle>
-                        <CardDescription className="text-xs">Enable actions your assistant can perform during conversations.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid gap-2">
-                          {FUNCTIONS.map((fn) => {
-                            const enabled = ((tools.functions ?? []) as string[]).includes(fn.value);
-                            return (
-                              <button key={fn.value} onClick={() => {
-                                const prev = (tools.functions ?? []) as string[];
-                                setTool("functions", enabled ? prev.filter((f: string) => f !== fn.value) : [...prev, fn.value]);
-                              }}
-                                className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left text-xs transition ${enabled ? "border-primary/30 bg-primary/5 text-foreground" : "border-border/40 text-muted-foreground hover:border-border"}`}>
-                                <span>{fn.label}</span>
-                                <span className={`inline-flex h-5 w-9 items-center rounded-full px-0.5 transition ${enabled ? "bg-primary" : "bg-secondary"}`}>
-                                  <span className={`h-4 w-4 rounded-full bg-background shadow transition-transform ${enabled ? "translate-x-4" : "translate-x-0"}`} />
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* ADVANCED TAB */}
-                  <TabsContent value="advanced" className="space-y-4">
-                    <Card className="border-border/40 bg-card shadow-card">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-display text-sm">Advanced Settings</CardTitle>
-                        <CardDescription className="text-xs">Runtime configuration and deployment options.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Conversation Mode</Label>
-                          <Select value={draft.conversation_mode ?? "neutral"} onValueChange={(v) => setDraft((p) => ({ ...p, conversation_mode: v }))}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {MODES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">First Message</Label>
-                          <Input value={tools.firstMessage ?? ""} onChange={(e) => setTool("firstMessage", e.target.value)}
-                            placeholder="Hi! How can I help you today?" className="text-xs" />
-                          <p className="text-[10px] text-muted-foreground">The greeting your assistant says when a conversation starts.</p>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <Label className="text-xs">Max Duration (seconds)</Label>
-                          <Input type="number" value={tools.maxDuration ?? 300} onChange={(e) => setTool("maxDuration", Number(e.target.value))}
-                            className="text-xs" min={30} max={3600} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
+                      </TabsContent>
+                    </motion.div>
+                  </AnimatePresence>
                 </Tabs>
               </div>
             )}
           </section>
 
-          {/* Voice playground sidebar */}
-          <aside className="w-full shrink-0 overflow-y-auto border-t border-sidebar-border bg-sidebar p-4 lg:w-80 lg:border-t-0 lg:border-l lg:p-4">
-            <VoicePlayground
-              assistant={{
-                name: draft.name ?? "New Assistant",
-                systemPrompt: draft.system_prompt ?? "",
-                language: draft.language ?? "en",
-                conversationMode: draft.conversation_mode ?? "friendly",
-                temperature: draft.temperature ?? 0.7,
-                voiceId: draft.voice_id ?? undefined,
-                voiceProvider: draft.voice_provider ?? "elevenlabs",
-              }}
-            />
+          {/* PLAYGROUND SIDEPANEL */}
+          <aside className="w-full lg:w-[450px] border-l border-white/[0.05] bg-white/[0.01] backdrop-blur-3xl overflow-y-auto custom-scrollbar">
+            <div className="p-10">
+              <div className="glass-card rounded-[2.5rem] p-8 border-white/10 shadow-3d mb-10">
+                <VoicePlayground
+                  assistant={{
+                    name: draft.name ?? "New AI",
+                    systemPrompt: draft.system_prompt ?? "",
+                    language: draft.language ?? "en",
+                    temperature: draft.temperature ?? 0.7,
+                    voiceId: draft.voice_id ?? undefined,
+                    voiceProvider: draft.voice_provider ?? "elevenlabs"
+                  }}
+                />
+              </div>
+
+              <div className="space-y-6">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground ml-2">CORE METRICS</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "LATENCY", val: "142ms", icon: Activity },
+                    { label: "ACCURACY", val: "99.4%", icon: Shield },
+                    { label: "UPTIME", val: "100%", icon: Zap },
+                    { label: "LOAD", val: "Optimal", icon: Layout },
+                  ].map(stat => (
+                    <div key={stat.label} className="glass-card rounded-2xl p-6 border-white/5 hover:border-primary/20 transition-all">
+                      <stat.icon className="h-4 w-4 text-primary mb-4" />
+                      <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</p>
+                      <p className="font-display font-black text-white italic">{stat.val}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </aside>
         </main>
       </div>
 
-      {/* Onboarding Wizard Dialog */}
-      {wizardOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <div className="mb-6 space-y-2 text-center">
-              <h2 className="text-2xl font-bold tracking-tight">Setup your Assistant</h2>
-              <p className="text-sm text-muted-foreground">This helps us customize the AI for your business.</p>
-            </div>
+      {/* ONBOARDING WIZARD */}
+      <AnimatePresence>
+        {wizardOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, rotateX: 20 }}
+              animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+              exit={{ opacity: 0, scale: 0.9, rotateX: -20 }}
+              className="w-full max-w-2xl glass-card rounded-[3rem] p-12 border-white/10 shadow-3d overflow-hidden preserve-3d"
+            >
+              <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary/20 blur-[100px] rounded-full" />
+              <div className="absolute -bottom-40 -right-40 w-80 h-80 bg-accent/20 blur-[100px] rounded-full" />
 
-            <div className="space-y-4">
-              {wizardStep === 1 && (
-                <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                  <div className="space-y-2">
-                    <Label>Assistant Name</Label>
-                    <Input autoFocus placeholder="e.g. Sarah" value={wizardData.name} onChange={(e) => setWizardData(p => ({ ...p, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Business Type</Label>
-                    <Input placeholder="e.g. Dental Clinic, Real Estate" value={wizardData.businessType} onChange={(e) => setWizardData(p => ({ ...p, businessType: e.target.value }))} />
-                  </div>
-                </div>
-              )}
-
-              {wizardStep === 2 && (
-                <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                  <div className="space-y-2">
-                    <Label>What should this assistant do?</Label>
-                    <CardDescription className="mb-2">Explain its goal, e.g. "Book appointments and answer FAQs about pricing."</CardDescription>
-                    <Textarea
-                      placeholder="e.g. Answer calls, screen leads, and book meetings on the calendar."
-                      className="min-h-[120px]"
-                      value={wizardData.requirements}
-                      onChange={(e) => setWizardData(p => ({ ...p, requirements: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-8 flex justify-between pt-4 border-t border-border/50">
-                {wizardStep === 1 ? (
-                  <Button variant="ghost" onClick={() => setWizardOpen(false)}>Cancel</Button>
-                ) : (
-                  <Button variant="ghost" onClick={() => setWizardStep(1)}>Back</Button>
-                )}
-
-                {wizardStep === 1 ? (
-                  <Button onClick={() => setWizardStep(2)} disabled={!wizardData.name || !wizardData.businessType}>
-                    Next <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button onClick={handleWizardSubmit} disabled={!wizardData.requirements || loading}>
-                    {loading ? "Creating..." : "Create Assistant"} <Sparkles className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
+              <div className="relative z-10 text-center mb-12">
+                <Wand2 className="h-16 w-16 text-primary mx-auto mb-6 animate-float-slow" />
+                <h2 className="text-5xl font-black italic tracking-tighter text-white">SPAWN NEW AI</h2>
+                <p className="text-muted-foreground font-medium uppercase tracking-[0.2em] text-[10px] mt-2">Neural Configuration Wizard</p>
               </div>
-            </div>
+
+              <div className="relative z-10 space-y-8">
+                {wizardStep === 1 ? (
+                  <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground ml-1">AI NAME</Label>
+                      <Input autoFocus placeholder="e.g. Athena" value={wizardData.name} onChange={e => setWizardData(p => ({ ...p, name: e.target.value }))} className="h-16 rounded-2xl bg-white/5 border-white/10 px-8 font-bold text-lg" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground ml-1">BUSINESS DOMAIN</Label>
+                      <Input placeholder="e.g. Fintech Support" value={wizardData.businessType} onChange={e => setWizardData(p => ({ ...p, businessType: e.target.value }))} className="h-16 rounded-2xl bg-white/5 border-white/10 px-8 font-bold text-lg" />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground ml-1">BEHAVIORAL REQUIREMENTS</Label>
+                      <Textarea placeholder="Explain the AI mission..." value={wizardData.requirements} onChange={e => setWizardData(p => ({ ...p, requirements: e.target.value }))} className="min-h-[160px] rounded-[2.5rem] bg-white/5 border-white/10 p-8 font-bold text-lg resize-none" />
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="flex justify-between items-center pt-8 border-t border-white/5">
+                  <Button variant="ghost" onClick={() => wizardStep === 1 ? setWizardOpen(false) : setWizardStep(1)} className="font-bold text-muted-foreground hover:text-white">
+                    {wizardStep === 1 ? "CANCEL" : "BACK"}
+                  </Button>
+                  <Button onClick={() => wizardStep === 1 ? setWizardStep(2) : handleWizardSubmit()} disabled={loading} className="bg-white text-black font-black rounded-full px-10 h-16 shadow-3d hover:scale-105 transition-all">
+                    {wizardStep === 1 ? "CONTINUE" : (loading ? "SPAWNING..." : "LAUNCH AI")} <ChevronRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

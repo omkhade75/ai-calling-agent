@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import VoiceAgentStudio from "./pages/VoiceAgentStudio";
 import PhoneNumbers from "./pages/PhoneNumbers";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { MouseEffect } from "@/components/ui/MouseEffect";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <MouseEffect />
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />

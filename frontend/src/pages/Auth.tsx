@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,9 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronRight, Eye, EyeOff } from "lucide-react";
+import { ChevronRight, Eye, EyeOff, ShieldCheck, Sparkles, Orbit } from "lucide-react";
 import agentrixLogo from "@/assets/agentrix-logo.png";
-import { apiFetch } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 
@@ -31,12 +30,29 @@ export default function Auth() {
   const [tab, setTab] = useState<"login" | "signup">(defaultTab);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login: contextLogin, user } = useAuth();
+  const { user } = useAuth();
+
+  /* 3D Tilt Effect */
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useTransform(y, [-0.5, 0.5], [5, -5]);
+  const rotateY = useTransform(x, [-0.5, 0.5], [-5, 5]);
+  const springX = useSpring(rotateX, { stiffness: 100, damping: 20 });
+  const springY = useSpring(rotateY, { stiffness: 100, damping: 20 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
 
   useEffect(() => {
     if (user) {
@@ -54,218 +70,140 @@ export default function Auth() {
     setLoading(true);
     try {
       if (tab === "login") {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email: values.email,
           password: values.password,
         });
-
         if (error) throw error;
-
-        toast({ title: "Welcome back!", description: "Accessing your business dashboard..." });
+        toast({ title: "Welcome back!", description: "Initializing your secure workspace..." });
         navigate("/app", { replace: true });
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: values.email,
           password: values.password,
-          options: {
-            data: {
-              displayName: values.displayName?.trim(),
-            }
-          }
+          options: { data: { displayName: values.displayName?.trim() } }
         });
-
         if (error) throw error;
-
-        toast({ title: "Success!", description: "Your account has been created. Please sign in." });
+        toast({ title: "Account Created", description: "Verification email sent if required. Please sign in." });
         setTab("login");
       }
     } catch (e: any) {
-      const message = e?.message || "Something went wrong";
-      if (message.includes("Invalid login credentials") || message.includes("Invalid email or password")) {
-        toast({ variant: "destructive", title: "Login Failed", description: "The email or password you entered is incorrect. Please try again or create a new account." });
-      } else if (message.includes("User already registered") || message.includes("already exists")) {
-        toast({ title: "Account Exists", description: "You already have an account. Please sign in instead." });
-        setTab("login");
-      } else {
-        toast({ variant: "destructive", title: "Error", description: message });
-      }
+      toast({ variant: "destructive", title: "Action Failed", description: e?.message || "Something went wrong" });
     } finally {
       setLoading(false);
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    setMousePosition({
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
-
   return (
     <div
-      className="flex min-h-screen items-center justify-center bg-zinc-950 p-4 relative overflow-hidden"
+      className="flex min-h-screen items-center justify-center bg-background p-6 relative overflow-hidden perspective-[1000px]"
       onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
-      <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'var(--gradient-mesh)' }} />
-
-      {/* Dynamic interactive background blobs */}
-      <motion.div
-        className="pointer-events-none absolute w-[500px] h-[500px] rounded-full filter blur-[100px] opacity-20"
-        style={{
-          background: 'radial-gradient(circle, rgba(16,185,129,0.8) 0%, rgba(6,182,212,0.4) 100%)',
-        }}
-        animate={{
-          x: mousePosition.x - 250,
-          y: mousePosition.y - 250,
-        }}
-        transition={{ type: "spring", damping: 15, stiffness: 40 }}
-      />
-
-      {/* Decorative scattered elements */}
-      {Array.from({ length: 6 }).map((_, i) => (
+      {/* Immersive Background */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] bg-[radial-gradient(circle_at_50%_50%,hsla(263,90%,60%,0.08)_0%,transparent_50%)]" />
         <motion.div
-          key={i}
-          className="absolute h-1 w-1 rounded-full bg-emerald-400/30"
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.1, 0.5, 0.1],
-          }}
-          transition={{
-            duration: 3 + i,
-            repeat: Infinity,
-            delay: i * 0.5,
-          }}
-          style={{
-            left: `${20 + i * 15}%`,
-            top: `${10 + (i % 3) * 30}%`,
-          }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full border border-white/[0.03] rounded-full"
         />
-      ))}
-
-      <div className="w-full max-w-md space-y-6 relative z-10 perspective-1000">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center space-y-2"
-        >
-          <div className="flex justify-center mb-6">
-            <Link to="/" className="inline-flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-foreground">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg shadow-lg relative">
-                <img src={agentrixLogo} alt="AGENTRIX" className="h-full w-full object-cover absolute inset-0" />
-              </div>
-              AGENTRIX
-            </Link>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {tab === "login" ? "Welcome back" : "Create an account"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {tab === "login" ? "Enter your email to sign in to your business account" : "Enter your email below to create your business account"}
-          </p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative group"
-        >
-          {/* Card glow effect */}
-          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-1000 group-hover:duration-200" />
-
-          <Card className="clean-card shadow-2xl relative bg-zinc-950/80 backdrop-blur-xl border-white/10">
-            <CardContent className="pt-6">
-              <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "signup")} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 h-10">
-                  <TabsTrigger value="login" className="font-semibold">Login</TabsTrigger>
-                  <TabsTrigger value="signup" className="font-semibold">Sign Up</TabsTrigger>
-                </TabsList>
-
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  {tab === "signup" && (
-                    <div className="space-y-2">
-                      <Label htmlFor="displayName">Business Name</Label>
-                      <Input id="displayName" placeholder="Acme Corp" {...form.register("displayName")} className="bg-background" />
-                      {form.formState.errors.displayName && <p className="text-xs text-destructive">{form.formState.errors.displayName.message}</p>}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="m@example.com" {...form.register("email")} className="bg-background" />
-                    {form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      {tab === "login" && <Link to="#" className="text-xs text-primary hover:underline">Forgot password?</Link>}
-                    </div>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        {...form.register("password")}
-                        className="bg-background pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {form.formState.errors.password && <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>}
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    />
-                    <label
-                      htmlFor="remember"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Remember me
-                    </label>
-                  </div>
-
-                  <Button type="submit" className="w-full font-bold bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-glow" disabled={loading}>
-                    {loading ? (
-                      <span className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Processing...</span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        {tab === "login" ? "Sign In" : "Create Account"} <ChevronRight className="h-4 w-4" />
-                      </span>
-                    )}
-                  </Button>
-                </form>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="px-8 text-center text-sm text-zinc-500 mt-6"
-        >
-          By clicking continue, you agree to our{" "}
-          <Link to="#" className="underline underline-offset-4 hover:text-primary">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link to="#" className="underline underline-offset-4 hover:text-primary">
-            Privacy Policy
-          </Link>
-          .
-        </motion.p>
+          animate={{ rotate: -360 }}
+          transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 border border-white/[0.02] rounded-full"
+        />
       </div>
+
+      <motion.div
+        style={{ rotateX: springX, rotateY: springY, transformStyle: "preserve-3d" }}
+        className="w-full max-w-lg relative z-10"
+      >
+        <div className="text-center mb-10 translate-z-20">
+          <Link to="/" className="inline-flex items-center gap-3 mb-6 transition-transform hover:scale-110">
+            <div className="h-12 w-12 p-1.5 rounded-2xl bg-white/5 border border-white/10 shadow-2xl">
+              <img src={agentrixLogo} alt="Logo" className="h-full w-full object-contain" />
+            </div>
+          </Link>
+          <h1 className="text-4xl font-black tracking-tighter text-white mb-2 italic">
+            {tab === "login" ? "ACCESS TERMINAL" : "CREATE IDENTITY"}
+          </h1>
+          <p className="text-muted-foreground font-medium uppercase tracking-[0.2em] text-[10px]">
+            Integrated Advanced AI Protocol
+          </p>
+        </div>
+
+        <div className="glass-card rounded-[2.5rem] p-1 border-white/10 overflow-hidden shadow-3d translate-z-10 bg-white/[0.02]">
+          <div className="p-8 md:p-12">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "signup")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-10 bg-white/5 rounded-2xl h-14 p-1.5 border border-white/[0.05]">
+                <TabsTrigger value="login" className="rounded-xl font-bold uppercase tracking-wider transition-all data-[state=active]:bg-primary data-[state=active]:text-white">Login</TabsTrigger>
+                <TabsTrigger value="signup" className="rounded-xl font-bold uppercase tracking-wider transition-all data-[state=active]:bg-primary data-[state=active]:text-white">Join</TabsTrigger>
+              </TabsList>
+
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {tab === "signup" && (
+                  <div className="space-y-2">
+                    <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground ml-1">Business Name</Label>
+                    <Input {...form.register("displayName")} className="h-14 rounded-2xl border-white/10 bg-white/5 backdrop-blur-md px-6 focus:ring-primary focus:border-primary transition-all font-medium" />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground ml-1">Secure Email</Label>
+                  <Input type="email" {...form.register("email")} className="h-14 rounded-2xl border-white/10 bg-white/5 backdrop-blur-md px-6 focus:ring-primary focus:border-primary transition-all font-medium" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between ml-1">
+                    <Label className="uppercase text-[10px] tracking-widest font-black text-muted-foreground">Encryption Key</Label>
+                    {tab === "login" && <Link to="#" className="text-[10px] uppercase tracking-widest font-black text-primary hover:text-white transition-colors">Recover</Link>}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      {...form.register("password")}
+                      className="h-14 rounded-2xl border-white/10 bg-white/5 backdrop-blur-md px-6 pr-14 focus:ring-primary focus:border-primary transition-all font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 py-2 ml-1">
+                  <Checkbox id="remember" className="rounded-lg border-white/20 data-[state=checked]:bg-primary data-[state=checked]:border-primary" />
+                  <label htmlFor="remember" className="text-xs font-bold text-muted-foreground/80 uppercase tracking-wider">Persist Session</label>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-16 rounded-2xl bg-white text-black font-black text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-3d mt-4"
+                >
+                  {loading ? (
+                    <Orbit className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <span className="flex items-center gap-3">
+                      {tab === "login" ? "INITIALIZE" : "CREATE PROTOCOL"} <ChevronRight className="h-5 w-5" />
+                    </span>
+                  )}
+                </Button>
+              </form>
+            </Tabs>
+          </div>
+        </div>
+
+        <div className="mt-8 flex items-center justify-center gap-8 opacity-40 grayscale">
+          <ShieldCheck className="h-5 w-5" />
+          <Sparkles className="h-5 w-5" />
+        </div>
+      </motion.div>
     </div>
   );
 }
+

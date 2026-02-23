@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Mic, MicOff, Phone, PhoneOff, Sparkles, Volume2 } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff, Sparkles, Volume2, Orbit, Activity, Shield, Zap } from "lucide-react";
 import { voiceChat } from "@/lib/agentrix-api";
 import { API_URL } from "@/lib/api";
 
@@ -12,7 +12,6 @@ export type PlaygroundAssistant = {
   name: string;
   systemPrompt: string;
   language: string;
-  conversationMode: string;
   temperature: number;
   voiceId?: string;
   voiceProvider?: string;
@@ -26,32 +25,28 @@ export function VoicePlayground({ assistant }: { assistant: PlaygroundAssistant 
   const [status, setStatus] = useState<"idle" | "listening" | "thinking" | "speaking" | "error">("idle");
   const [messages, setMessages] = useState<Message[]>([]);
   const recognitionRef = useRef<any>(null);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesRef = useRef<Message[]>([]);
 
-  // Keep a ref in sync so the callbacks always have latest messages
   messagesRef.current = messages;
 
   const statusLabel = useMemo(() => {
     switch (status) {
-      case "listening": return "Listening…";
-      case "thinking": return "Thinking…";
-      case "speaking": return "Speaking…";
-      case "error": return "Error";
-      default: return "Ready to talk";
+      case "listening": return "LISTENING...";
+      case "thinking": return "THINKING...";
+      case "speaking": return "SPEAKING...";
+      case "error": return "SYSTEM ERROR";
+      default: return "READY FOR TRANSMISSION";
     }
   }, [status]);
 
   const speak = useCallback(async (text: string) => {
-    // Stop any current audio
     if (window.speechSynthesis) window.speechSynthesis.cancel();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
 
-    // Check if we should use server-side TTS (ElevenLabs / OpenAI)
     if (assistant?.voiceProvider && assistant.voiceProvider !== 'browser') {
       try {
         setStatus("speaking");
@@ -65,13 +60,7 @@ export function VoicePlayground({ assistant }: { assistant: PlaygroundAssistant 
           })
         });
 
-        if (!res.ok) {
-          if (res.status === 404) {
-            setStatus("error");
-            throw new Error("Server Outdated: Restart npm run server");
-          }
-          throw new Error(await res.text());
-        }
+        if (!res.ok) throw new Error("TTS Failure");
 
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
@@ -83,52 +72,20 @@ export function VoicePlayground({ assistant }: { assistant: PlaygroundAssistant 
           URL.revokeObjectURL(url);
           audioRef.current = null;
         };
-        audio.onerror = () => {
-          setStatus("idle");
-          toast({ variant: "destructive", title: "Audio Error", description: "Failed to play audio." });
-          audioRef.current = null;
-        };
-
-        try {
-          await audio.play();
-        } catch (e) {
-          console.error("Autoplay failed:", e);
-        }
+        audio.play();
         return;
       } catch (e) {
-        console.error("Server TTS failed, falling back to browser:", e);
-        const msg = e instanceof Error ? e.message : "TTS Failed";
-        toast({
-          variant: "destructive",
-          title: "TTS Error",
-          description: msg.includes("Restart") ? msg : "Using browser voice as fallback."
-        });
-        // Fall through to browser logic
+        toast({ variant: "destructive", title: "Neural Fallback", description: "Reverting to browser synthesis." });
       }
     }
 
-    // Fallback: Browser Speech Synthesis
-    if (!("speechSynthesis" in window)) {
-      setStatus("idle");
-      return;
-    }
-
+    if (!("speechSynthesis" in window)) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = assistant?.language ?? "en";
-    utterance.volume = 1.0;
-    synthRef.current = utterance;
-
     utterance.onend = () => setStatus("idle");
-    utterance.onerror = (e) => {
-      console.error("Speech synthesis error:", e);
-      setStatus("idle");
-    };
-
     setStatus("speaking");
-    setTimeout(() => window.speechSynthesis.speak(utterance), 50);
-  }, [assistant?.voiceProvider, assistant?.voiceId, assistant?.language, toast]);
-
-
+    window.speechSynthesis.speak(utterance);
+  }, [assistant, toast]);
 
   const getAIResponse = useCallback(async (userText: string) => {
     setStatus("thinking");
@@ -138,161 +95,126 @@ export function VoicePlayground({ assistant }: { assistant: PlaygroundAssistant 
     try {
       const data = await voiceChat.invoke({
         userMessage: userText,
-        systemPrompt: assistant?.systemPrompt ?? "You are a helpful voice assistant.",
+        systemPrompt: assistant?.systemPrompt ?? "You are a helpful assistant.",
         temperature: assistant?.temperature ?? 0.7,
-        conversationHistory: newMessages.slice(-6).map((m) => ({
+        conversationHistory: newMessages.slice(-4).map((m) => ({
           role: m.role,
           content: m.text,
         })),
       });
 
-      const reply = data?.reply ?? "Sorry, I couldn't process that.";
+      const reply = data?.reply ?? "Error processing protocol.";
       setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
       speak(reply);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to get response";
-      toast({ variant: "destructive", title: "AI Error", description: msg });
+    } catch (e) {
       setStatus("idle");
     }
-  }, [assistant, speak, toast]);
+  }, [assistant, speak]);
 
   const startTalking = useCallback(() => {
-    if (!assistant) {
-      toast({ variant: "destructive", title: "No assistant", description: "Select or create an assistant first." });
-      return;
-    }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast({ variant: "destructive", title: "Not supported", description: "Speech recognition is not supported in this browser. Try Chrome." });
-      return;
-    }
+    if (!SpeechRecognition) return;
 
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
-
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = assistant.language ?? "en";
+    recognition.lang = assistant?.language ?? "en";
     recognitionRef.current = recognition;
 
     recognition.onresult = (event: any) => {
       const transcript = event.results[0]?.[0]?.transcript;
-      if (transcript) {
-        getAIResponse(transcript);
-      } else {
-        setStatus("idle");
-      }
+      if (transcript) getAIResponse(transcript);
+      else setStatus("idle");
     };
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error !== "aborted" && event.error !== "no-speech") {
-        toast({ variant: "destructive", title: "Mic error", description: event.error });
-      }
-      setStatus("idle");
-    };
-
-    recognition.onend = () => {
-      // Recognition ended without result
-    };
-
-    try {
-      recognition.start();
-      setStatus("listening");
-    } catch (e) {
-      console.error("Failed to start recognition:", e);
-      toast({ variant: "destructive", title: "Mic error", description: "Could not start microphone." });
-      setStatus("idle");
-    }
-  }, [assistant, getAIResponse, toast]);
+    recognition.onerror = () => setStatus("idle");
+    recognition.start();
+    setStatus("listening");
+  }, [assistant, getAIResponse]);
 
   const stopTalking = useCallback(() => {
     recognitionRef.current?.abort();
     if (window.speechSynthesis) window.speechSynthesis.cancel();
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    if (audioRef.current) audioRef.current.pause();
     setStatus("idle");
   }, []);
 
   const isActive = status !== "idle";
 
   return (
-    <Card className="border-border/40 bg-card shadow-card">
-      <CardHeader className="pb-3">
-        <CardTitle className="font-display text-sm">Voice Playground</CardTitle>
-        <CardDescription className="text-[11px]">Talk directly with your assistant</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Status bar */}
-        <div className="flex items-center justify-between rounded-lg border border-border/30 bg-secondary/30 px-3 py-2 text-xs">
-          <div className="min-w-0">
-            <p className="font-display text-[11px] truncate">{assistant?.name ?? "No assistant"}</p>
-            <p className="text-[10px] text-muted-foreground">{statusLabel}</p>
-          </div>
-          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Volume2 className="h-3 w-3" /> {assistant?.voiceProvider ?? "browser"}
-          </span>
-        </div>
+    <div className="space-y-6">
+      <div className="text-center">
+        <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground mb-4">Neural Interface</h4>
+        <div className="relative h-64 w-full flex items-center justify-center">
+          {/* Animated Rings */}
+          <AnimatePresence>
+            {isActive && (
+              <>
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1.5, opacity: 0.1 }}
+                  exit={{ scale: 2, opacity: 0 }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="absolute inset-0 rounded-full border-2 border-primary"
+                />
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1.2, opacity: 0.2 }}
+                  exit={{ scale: 1.8, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.5 }}
+                  className="absolute inset-0 rounded-full border-2 border-primary"
+                />
+              </>
+            )}
+          </AnimatePresence>
 
-        {/* Voice ID display */}
-        {assistant?.voiceId && (
-          <div className="rounded-md border border-border/20 bg-secondary/20 px-3 py-1.5 text-[10px] text-muted-foreground truncate">
-            Voice: {assistant.voiceId}
-          </div>
-        )}
-
-        {status === "error" && (
-          <div className="rounded-md bg-destructive/10 p-2 text-center text-xs font-bold text-destructive">
-            Server Update Required! Restart `npm run server`
-          </div>
-        )}
-
-        {/* Orb */}
-        <div className="relative grid place-items-center overflow-hidden rounded-xl border border-border/30 bg-background py-8">
-          <div className="pointer-events-none absolute inset-0" style={{ background: "var(--gradient-mesh)" }} />
+          {/* Core Orb */}
           <motion.div
-            className={`relative grid h-24 w-24 place-items-center rounded-full border bg-background/80 shadow-pop transition-colors ${isActive ? "border-primary/40" : "border-primary/20"}`}
-            animate={reduceMotion ? undefined : {
-              scale: status === "listening" ? [1, 1.15, 1] : status === "speaking" ? [1, 1.1, 1] : status === "thinking" ? [1, 1.05, 1] : 1,
-            }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            animate={isActive ? {
+              scale: [1, 1.1, 1],
+              rotate: [0, 90, 180, 270, 360]
+            } : {}}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+            className={`relative h-40 w-40 rounded-full flex items-center justify-center border-4 transition-all duration-500 \${isActive ? "border-primary bg-primary/10 shadow-[0_0_50px_rgba(124,58,237,0.3)]" : "border-white/10 bg-white/5"}`}
           >
-            <div className={`grid h-10 w-10 place-items-center rounded-xl shadow-glow transition-colors ${isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>
-              {status === "listening" ? <Mic className="h-5 w-5 animate-pulse" /> :
-                status === "speaking" ? <Sparkles className="h-5 w-5" /> :
-                  status === "thinking" ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" /> :
-                    <Phone className="h-5 w-5" />}
+            <div className={`h-32 w-32 rounded-full border border-white/10 flex items-center justify-center \${isActive ? "animate-pulse" : ""}`}>
+              {status === "listening" ? <Mic className="h-10 w-10 text-primary" /> :
+                status === "speaking" ? <Activity className="h-10 w-10 text-primary" /> :
+                  status === "thinking" ? <Orbit className="h-10 w-10 text-primary animate-spin" /> :
+                    <Zap className="h-10 w-10 text-muted-foreground opacity-20" />}
             </div>
           </motion.div>
         </div>
+      </div>
 
-        {/* Messages */}
+      <div className="glass-card rounded-[2rem] p-6 border-white/10 space-y-4">
+        <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          <span>Terminal Status</span>
+          <span className={isActive ? "text-primary animate-pulse" : ""}>{statusLabel}</span>
+        </div>
+
         {messages.length > 0 && (
-          <div className="max-h-40 overflow-y-auto space-y-1.5 rounded-lg border border-border/20 bg-secondary/20 p-2">
-            {messages.slice(-6).map((m, i) => (
-              <div key={i} className={`text-[10px] leading-relaxed ${m.role === "user" ? "text-muted-foreground" : "text-foreground"}`}>
-                <span className="font-display font-semibold">{m.role === "user" ? "You" : assistant?.name ?? "AI"}:</span> {m.text}
+          <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+            {messages.slice(-4).map((m, i) => (
+              <div key={i} className={`p-4 rounded-2xl text-xs font-medium leading-relaxed \${m.role === "assistant" ? "bg-primary/10 border border-primary/20 text-white" : "bg-white/5 border border-white/10 text-muted-foreground ml-4"}`}>
+                <p className="opacity-40 uppercase font-black tracking-tighter text-[8px] mb-1">{m.role}</p>
+                {m.text}
               </div>
             ))}
           </div>
         )}
 
-        {/* Controls */}
-        {isActive ? (
-          <Button variant="destructive" className="w-full" onClick={stopTalking}>
-            <PhoneOff className="h-3.5 w-3.5" /> End Conversation
-          </Button>
-        ) : (
-          <Button variant="hero" className="w-full" onClick={startTalking}>
-            <Phone className="h-3.5 w-3.5" /> Talk to Assistant
-          </Button>
-        )}
-        <p className="text-center text-[10px] text-muted-foreground">Uses AI voice synthesis & browser speech recognition.</p>
-      </CardContent>
-    </Card>
+        <div className="pt-4">
+          {isActive ? (
+            <Button onClick={stopTalking} className="w-full h-16 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive font-black hover:bg-destructive/20 transition-all">
+              <PhoneOff className="mr-3 h-5 w-5" /> TERMINATE SESSION
+            </Button>
+          ) : (
+            <Button onClick={startTalking} className="w-full h-16 rounded-2xl bg-primary text-white font-black shadow-3d hover:scale-105 transition-all">
+              <Phone className="mr-3 h-5 w-5" /> INITIATE TRANSMISSION
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
