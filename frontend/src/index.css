@@ -106,11 +106,16 @@
   }
 
   .glass-card {
-    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0, 0, 0, 0.5)] transition-all duration-500;
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] transition-all duration-500;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   }
 
   .glass-card-hover {
-    @apply hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-[0_8px_48px_0_rgba(0, 0, 0, 0.6)] hover:-translate-y-1;
+    @apply hover:bg-white/[0.06] hover:border-white/[0.15] hover:-translate-y-1;
+  }
+
+  .glass-card-hover:hover {
+    box-shadow: 0 8px 48px 0 rgba(0, 0, 0, 0.6);
   }
 
   .text-gradient {
