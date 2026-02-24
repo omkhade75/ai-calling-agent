@@ -1,61 +1,67 @@
 import express from 'express';
 import crypto from 'crypto';
-import { User } from '../db.js';
 import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
-const supabase = createClient(
-    process.env.VITE_SUPABASE_URL || 'https://hjrdlfbpmkwoolobyzjd.supabase.co',
-    process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqcmRsZmJwbWt3b29sb2J5empkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3OTk1NDMsImV4cCI6MjA4NTM3NTU0M30.t6Bcqy8Mg-XaA1g4F7bnkJqviE09-UQu3e8pgsNvQUs'
-);
+function getSupabase() {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    return createClient(url, key);
+}
 
-// GET /api/auth/me — verify Supabase token & return/sync Mongoose user
+// GET /api/auth/me — verify JWT and sync/create user profile in Supabase
 router.get('/me', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!authHeader?.startsWith('Bearer ')) {
             return res.status(401).json({ error: 'No token provided' });
         }
 
         const token = authHeader.split(' ')[1];
-        const { data: { user: sbUser }, error } = await supabase.auth.getUser(token);
+        const supabase = getSupabase();
 
+        const { data: { user: sbUser }, error } = await supabase.auth.getUser(token);
         if (error || !sbUser) {
             return res.status(401).json({ error: 'Invalid or expired Supabase token' });
         }
 
-        // Find or create user in MongoDB by email
-        let user = await User.findOne({ email: sbUser.email });
+        // Find or create profile in user_profiles table
+        let { data: profile } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', sbUser.id)
+            .single();
 
-        if (!user) {
-            user = await User.create({
-                email: sbUser.email,
-                password: 'supabase_managed',
-                displayName: sbUser.user_metadata?.displayName || '',
-                publicKey: 'pk_' + crypto.randomBytes(16).toString('hex'),
-                secretKey: 'sk_' + crypto.randomBytes(16).toString('hex')
-            });
-        }
+        if (!profile) {
+            const { data: newProfile, error: createErr } = await supabase
+                .from('user_profiles')
+                .insert([{
+                    id: sbUser.id,
+                    email: sbUser.email,
+                    display_name: sbUser.user_metadata?.displayName || sbUser.email?.split('@')[0] || 'User',
+                    public_key: 'pk_' + crypto.randomBytes(16).toString('hex'),
+                    secret_key: 'sk_' + crypto.randomBytes(16).toString('hex'),
+                }])
+                .select()
+                .single();
 
-        // Generate keys if missing
-        if (!user.publicKey || !user.secretKey) {
-            user.publicKey = user.publicKey || 'pk_' + crypto.randomBytes(16).toString('hex');
-            user.secretKey = user.secretKey || 'sk_' + crypto.randomBytes(16).toString('hex');
+            if (createErr) console.error('Profile create error:', createErr);
+            profile = newProfile;
         }
 
         res.json({
             user: {
-                id: sbUser.id, // Return Supabase UUID
-                email: user.email,
-                displayName: user.displayName,
-                publicKey: user.publicKey,
-                secretKey: user.secretKey
+                id: sbUser.id,
+                email: sbUser.email,
+                displayName: profile?.display_name || sbUser.email,
+                publicKey: profile?.public_key,
+                secretKey: profile?.secret_key,
             }
         });
     } catch (err) {
-        console.error('Auth verification error:', err);
-        res.status(401).json({ error: 'Invalid or expired token' });
+        console.error('Auth /me error:', err);
+        res.status(401).json({ error: 'Authentication failed' });
     }
 });
 

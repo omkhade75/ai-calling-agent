@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion, useMotionValue, useSpring, useTransform, useScroll } from "framer-motion";
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,31 +54,40 @@ const useTilt = () => {
 };
 
 /* ─── Perspective Grid ─── */
-const GridBg = () => (
-  <div className="pointer-events-none absolute inset-0 overflow-hidden">
-    <div className="absolute inset-0" style={{
-      backgroundImage: `
-        linear-gradient(hsla(263,90%,60%,0.04) 1px, transparent 1px),
-        linear-gradient(90deg, hsla(263,90%,60%,0.04) 1px, transparent 1px)
-      `,
-      backgroundSize: "60px 60px",
-      transform: "perspective(800px) rotateX(18deg) scale(1.6)",
-      transformOrigin: "top center",
-    }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-  </div>
-);
+const GridBg = () => {
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 1000], [0, 250]);
+
+  return (
+    <motion.div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ y }}>
+      <div className="absolute inset-0" style={{
+        backgroundImage: `
+          linear-gradient(hsla(290,100%,60%,0.08) 1px, transparent 1px),
+          linear-gradient(90deg, hsla(290,100%,60%,0.08) 1px, transparent 1px)
+        `,
+        backgroundSize: "60px 60px",
+        transform: "perspective(800px) rotateX(25deg) scale(2.5)",
+        transformOrigin: "top center",
+      }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+    </motion.div>
+  );
+};
 
 /* ─── Animated Orb ─── */
 const HeroOrb = () => (
-  <div className="relative flex items-center justify-center">
+  <motion.div
+    className="relative flex items-center justify-center cursor-pointer"
+    whileHover={{ scale: 1.1 }}
+    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  >
     {/* Outer rotating rings */}
     {[0, 1, 2].map(i => (
       <motion.div key={i}
         animate={{ rotate: [0, 360] }}
         transition={{ duration: 12 + i * 6, repeat: Infinity, ease: "linear" }}
-        className="absolute rounded-full border border-white/[0.06]"
-        style={{ width: 220 + i * 80, height: 220 + i * 80, borderColor: `hsla(${263 + i * 40},80%,65%,${0.12 - i * 0.03})` }}
+        className="absolute rounded-full border border-white/[0.08]"
+        style={{ width: 220 + i * 80, height: 220 + i * 80, borderColor: `hsla(${290 + i * 20},100%,60%,${0.15 - i * 0.04})` }}
       />
     ))}
     {/* Accent ring */}
@@ -86,14 +95,14 @@ const HeroOrb = () => (
       animate={{ rotate: [360, 0] }}
       transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
       className="absolute w-[260px] h-[260px] rounded-full"
-      style={{ border: "1px dashed hsla(185,90%,60%,0.15)" }}
+      style={{ border: "2px dashed hsla(190,100%,60%,0.25)" }}
     />
     {/* Core entity */}
     <motion.div
-      animate={{ scale: [1, 1.04, 1], boxShadow: ["0 0 40px hsla(263,90%,60%,0.3)", "0 0 80px hsla(263,90%,60%,0.5)", "0 0 40px hsla(263,90%,60%,0.3)"] }}
+      animate={{ scale: [1, 1.08, 1], boxShadow: ["0 0 50px hsla(290,100%,60%,0.4)", "0 0 100px hsla(290,100%,60%,0.7)", "0 0 50px hsla(290,100%,60%,0.4)"] }}
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="relative w-36 h-36 rounded-full flex items-center justify-center"
-      style={{ background: "radial-gradient(circle at 35% 35%, hsla(263,90%,75%,1), hsla(263,90%,45%,1))" }}
+      className="relative w-36 h-36 rounded-full flex items-center justify-center transform-gpu"
+      style={{ background: "radial-gradient(circle at 35% 35%, hsla(290,100%,75%,1), hsla(290,100%,45%,1))" }}
     >
       <div className="absolute inset-2 rounded-full bg-black/20 backdrop-blur-sm flex items-center justify-center">
         <Bot className="h-10 w-10 text-white" />
@@ -103,10 +112,10 @@ const HeroOrb = () => (
       />
     </motion.div>
     {/* Glow aura */}
-    <div className="absolute w-80 h-80 rounded-full blur-[100px] opacity-20"
-      style={{ background: "radial-gradient(circle, hsla(263,90%,65%,1), hsla(185,90%,55%,0.5))" }}
+    <div className="absolute w-[400px] h-[400px] rounded-full blur-[120px] opacity-25"
+      style={{ background: "radial-gradient(circle, hsla(290,100%,60%,1), hsla(190,100%,55%,0.6))" }}
     />
-  </div>
+  </motion.div>
 );
 
 /* ─── Feature Card ─── */
@@ -116,6 +125,7 @@ const FeatureCard = ({ title, desc, icon: Icon, color, index }: any) => {
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.03, y: -5 }}
       viewport={{ once: true }}
       transition={{ delay: index * 0.08 }}
       onMouseMove={onMouseMove}
@@ -142,11 +152,12 @@ const FeatureCard = ({ title, desc, icon: Icon, color, index }: any) => {
 /* ─── Step ─── */
 const Step = ({ num, title, desc, icon: Icon, index }: any) => (
   <motion.div
-    initial={{ opacity: 0, y: 20 }}
+    initial={{ opacity: 0, y: 20, x: 0 }}
     whileInView={{ opacity: 1, y: 0 }}
     viewport={{ once: true }}
-    transition={{ delay: index * 0.1 }}
-    className="flex items-start gap-4 group"
+    whileHover={{ x: 10, scale: 1.02 }}
+    transition={{ delay: index * 0.1, type: "spring", stiffness: 300 }}
+    className="flex items-start gap-4 group cursor-pointer"
   >
     <div className="relative flex-shrink-0">
       <div className="h-10 w-10 rounded-xl border border-white/10 bg-white/[0.03] flex items-center justify-center group-hover:border-primary/30 group-hover:bg-primary/10 transition-all">
@@ -348,7 +359,7 @@ const Index = () => {
                 animate={{ rotate: [0, 360] }}
                 transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
                 className="absolute -top-1/2 -left-1/4 w-[150%] h-[150%] opacity-20"
-                style={{ background: "conic-gradient(from 0deg, hsla(263,90%,60%,0.15), transparent 30%, hsla(185,90%,55%,0.15), transparent 70%)" }}
+                style={{ background: "conic-gradient(from 0deg, hsla(290,100%,60%,0.25), transparent 30%, hsla(190,100%,55%,0.25), transparent 70%)" }}
               />
               <div className="relative z-10">
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 mx-auto mb-8">

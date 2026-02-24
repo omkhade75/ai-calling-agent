@@ -10,44 +10,44 @@
     --font-display: 'Syne', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
-    /* Core Deep Space Palette */
-    --background: 230 25% 3%;
-    --foreground: 220 15% 95%;
-    --card: 230 20% 5%;
-    --card-foreground: 220 15% 95%;
-    --popover: 230 20% 5%;
-    --popover-foreground: 220 15% 95%;
+    /* Advanced 3D Space Palette */
+    --background: 240 35% 2%;
+    --foreground: 220 30% 98%;
+    --card: 240 30% 4%;
+    --card-foreground: 220 30% 98%;
+    --popover: 240 30% 4%;
+    --popover-foreground: 220 30% 98%;
 
-    /* Hyper Violet Primary */
-    --primary: 263 95% 65%;
+    /* Cyber Neon Colors */
+    --primary: 290 100% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 230 15% 10%;
-    --secondary-foreground: 220 15% 95%;
-    --muted: 230 15% 9%;
-    --muted-foreground: 230 10% 55%;
-    --accent: 185 95% 55%;
+    --secondary: 240 30% 8%;
+    --secondary-foreground: 220 30% 98%;
+    --muted: 240 25% 10%;
+    --muted-foreground: 240 15% 65%;
+    --accent: 190 100% 55%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 85% 62%;
+    --destructive: 340 100% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 230 20% 12%;
-    --input: 230 20% 10%;
-    --ring: 263 95% 65%;
-    --radius: 0.875rem;
+    --border: 240 40% 12%;
+    --input: 240 40% 10%;
+    --ring: 290 100% 60%;
+    --radius: 1rem;
 
-    --sidebar-background: 230 25% 4%;
-    --sidebar-foreground: 220 15% 95%;
-    --sidebar-primary: 263 95% 65%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 230 15% 9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 230 20% 12%;
-    --sidebar-ring: 263 95% 65%;
+    --sidebar-background: 240 35% 3%;
+    --sidebar-foreground: 220 30% 98%;
+    --sidebar-primary: 290 100% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 30% 8%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 40% 12%;
+    --sidebar-ring: 290 100% 60%;
 
     /* 7D Spatial Variables */
-    --perspective: 1200px;
-    --glow-primary: 263, 95%, 65%;
-    --glow-accent: 185, 95%, 55%;
-    --glow-hot: 315, 95%, 65%;
+    --perspective: 1500px;
+    --glow-primary: 290, 100%, 60%;
+    --glow-accent: 190, 100%, 55%;
+    --glow-hot: 330, 100%, 65%;
   }
 }
 
@@ -67,11 +67,11 @@
   body {
     font-family: var(--font-sans);
     @apply bg-background text-foreground antialiased;
-    background-color: hsl(230, 25%, 3%);
+    background-color: hsl(240, 35%, 2%);
     background-image:
-      radial-gradient(ellipse 80% 60% at 10% 0%, hsla(263, 90%, 60%, 0.18) 0%, transparent 55%),
-      radial-gradient(ellipse 60% 50% at 90% 100%, hsla(185, 90%, 55%, 0.14) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 50% 50%, hsla(315, 90%, 60%, 0.05) 0%, transparent 60%);
+      radial-gradient(ellipse 80% 60% at 10% 0%, hsla(290, 100%, 60%, 0.25) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 50% at 90% 100%, hsla(190, 100%, 55%, 0.2) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 50% 50%, hsla(330, 100%, 65%, 0.15) 0%, transparent 60%);
     background-attachment: fixed;
     overflow-x: hidden;
   }
@@ -84,8 +84,8 @@
     pointer-events: none;
     z-index: 0;
     background:
-      conic-gradient(from 200deg at 20% 30%, hsla(263, 90%, 60%, 0.07), transparent 40%),
-      conic-gradient(from 20deg at 80% 70%, hsla(185, 90%, 50%, 0.07), transparent 40%);
+      conic-gradient(from 200deg at 20% 30%, hsla(290, 100%, 60%, 0.1), transparent 40%),
+      conic-gradient(from 20deg at 80% 70%, hsla(190, 100%, 55%, 0.1), transparent 40%);
     animation: aurora-shift 20s ease-in-out infinite alternate;
   }
 
@@ -234,7 +234,7 @@ body.cursor-hover #cursor-ring {
 
   /* Premium Gradients */
   .text-gradient {
-    background: linear-gradient(135deg, hsl(263, 95%, 75%) 0%, hsl(185, 95%, 65%) 50%, hsl(315, 95%, 70%) 100%);
+    background: linear-gradient(135deg, hsl(330, 100%, 65%) 0%, hsl(290, 100%, 65%) 50%, hsl(190, 100%, 60%) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
